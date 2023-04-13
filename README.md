@@ -1,7 +1,8 @@
 # twm
 Tmux Workspace Manager
 
-![twm](https://s10.gifyu.com/images/twm26d95db6c9c4e9e3.gif)
+![twm](https://s2.gifyu.com/images/twm2.gif)
+
 
 ## Another one?
 Yes - I was originally inspired to start using something to manage my tmux sessions by [ThePrimeagen's](https://github.com/ThePrimeagen/.dotfiles/blob/602019e902634188ab06ea31251c01c1a43d1621/bin/.local/scripts/tmux-sessionizer) tmux-sessionizer script. I used it for a bit, but wanted something more, that did a bit more.
