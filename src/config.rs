@@ -149,10 +149,7 @@ pub fn load() -> Result<TwmGlobal> {
     let config_path = xdg_dirs.find_config_file(&config_file_name);
     let raw_config = match config_path {
         Some(path) => RawTwmGlobal::try_from(&path),
-        None => anyhow::bail!(format!(
-            "Unable to find a {} config file. Please create one in a valid XDG config directory (default is $HOME/.config/{}/{}).)",
-            &config_file_name, clap::crate_name!(), &config_file_name
-        )),
+        None => RawTwmGlobal::from_str(""),
     }?;
     let config = TwmGlobal::try_from(raw_config)
         .with_context(|| "Failed to validate configuration settings.")?;

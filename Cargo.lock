@@ -1321,17 +1321,15 @@ dependencies = [
 
 [[package]]
 name = "twm"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "clap 4.1.11",
  "config",
  "libc",
- "linked-hash-map",
  "serde",
  "shellexpand",
  "skim",
- "thiserror",
  "walkdir",
  "xdg",
 ]

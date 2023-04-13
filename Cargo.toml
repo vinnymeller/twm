@@ -1,7 +1,12 @@
 [package]
 name = "twm"
-version = "0.1.0"
+description = "A customizable workspace manager for tmux"
+version = "0.1.1"
 edition = "2021"
+license-file = "LICENSE"
+readme = "README.md"
+repository = "https://github.com/vinnymeller/twm"
+include = ["src/**/*", "Cargo.toml", "LICENSE", "README.md"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -11,9 +16,7 @@ clap = { version = "4.1", features = ["cargo", "derive"] }
 config = "0.13"
 serde = { version = "1", features = ["derive"] }
 libc = "0.2"
-linked-hash-map = "0.5"
 shellexpand = "3"
 skim = "0.10"
-thiserror = "1"
 walkdir = "2"
 xdg = "2.4"
