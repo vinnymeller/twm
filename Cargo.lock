@@ -1326,6 +1326,7 @@ dependencies = [
  "anyhow",
  "clap 4.1.11",
  "config",
+ "indexmap",
  "libc",
  "serde",
  "shellexpand",

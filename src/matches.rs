@@ -1,58 +1,82 @@
 use crate::config::TwmGlobal;
-use std::collections::HashMap;
-use std::path::PathBuf;
+use anyhow::Result;
+use std::{collections::HashMap, path::Path};
 
 use walkdir::{DirEntry, WalkDir};
 
-#[derive(Debug)]
-pub struct WorkspaceMatch {
-    pub path: PathBuf,
-    pub path_lossy: String,
-    pub workspace_definition_name: Option<String>,
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+pub struct SafePath {
+    pub path: String,
 }
 
-pub fn find_workspaces_in_dir(
+impl TryFrom<&Path> for SafePath {
+    type Error = anyhow::Error;
+
+    fn try_from(path: &Path) -> Result<Self> {
+        match path.to_str() {
+            Some(s) => Ok(Self {
+                path: s.to_string(),
+            }),
+            None => anyhow::bail!("Path is not valid UTF-8"),
+        }
+    }
+}
+
+impl SafePath {
+    #[must_use]
+    pub fn new(str: &str) -> Self {
+        Self {
+            path: str.to_string(),
+        }
+    }
+}
+
+pub fn find_workspaces_in_dir<'a>(
     dir: &str,
-    config: &TwmGlobal,
-    workspaces: &mut HashMap<String, WorkspaceMatch>,
+    config: &'a TwmGlobal,
+    workspaces: &mut HashMap<SafePath, &'a str>,
 ) {
     let is_excluded = |entry: &DirEntry| -> bool {
-        config.exclude_path_components.iter().any(|excl| {
-            entry
-                .path()
-                .to_str()
-                .expect("This shouldn't ever happen, I already checked!")
-                .contains(excl)
-        })
+        match entry
+            .path()
+            .components()
+            .last()
+            .expect("Surely there is always a last component?")
+            .as_os_str()
+            .to_str()
+        {
+            Some(s) => config.exclude_path_components.iter().any(|e| s == e),
+            None => true,
+        }
     };
 
     let walker = WalkDir::new(dir)
         .max_depth(config.max_search_depth)
         .into_iter()
-        .filter_entry(|e| e.file_type().is_dir() && !is_excluded(e) && e.path().to_str().is_some())
+        .filter_entry(|e| e.file_type().is_dir() && !is_excluded(e))
         .filter_map(std::result::Result::ok);
 
     for entry in walker {
-        let path = entry.path();
-        let path_lossy = path.to_string_lossy().to_string();
+        let path = match SafePath::try_from(entry.path()) {
+            Ok(p) => p,
+            Err(_) => continue,
+        };
 
-        for workspace_definition in &config.workspace_definitions {
+        let mut workspace_type: Option<&'a str> = None;
+
+        for (_, workspace_definition) in &config.workspace_definitions {
             for file_name in &workspace_definition.has_any_file {
-                if path.join(file_name).exists() {
-                    workspaces.insert(
-                        path_lossy.clone(),
-                        WorkspaceMatch {
-                            path: path.to_path_buf(),
-                            path_lossy: path_lossy.clone(),
-                            workspace_definition_name: Some(workspace_definition.name.clone()),
-                        },
-                    );
+                if entry.path().join(file_name).exists() {
+                    workspace_type = Some(workspace_definition.name.as_str());
                     break;
                 }
             }
-            if workspaces.contains_key(&path_lossy) {
+            if workspace_type.is_some() {
                 break;
             }
+        }
+        if let Some(workspace_type) = workspace_type {
+            workspaces.insert(path, workspace_type);
         }
     }
 }

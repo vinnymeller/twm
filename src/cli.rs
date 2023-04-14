@@ -1,10 +1,11 @@
 use std::collections::HashMap;
+use std::path::Path;
 
 use crate::picker::get_skim_selection_from_slice;
 use anyhow::Result;
 
-use crate::config;
-use crate::matches::{find_workspaces_in_dir, WorkspaceMatch};
+use crate::config::TwmGlobal;
+use crate::matches::{find_workspaces_in_dir, SafePath};
 use crate::tmux::open_workspace;
 use clap::Parser;
 
@@ -24,35 +25,37 @@ pub struct Arguments {
 pub fn parse() -> Result<()> {
     let args = Arguments::parse();
 
-    let mut config = config::load()?;
+    let config = TwmGlobal::load()?;
 
+    let mut matched_workspaces = HashMap::<SafePath, &str>::new();
     // handle a path directly being passed in first
-    let workspace_match = if let Some(path) = args.path.clone() {
+    let workspace_path = if let Some(path) = args.path.clone() {
         let path_full = std::fs::canonicalize(path)?;
-        let path_match = WorkspaceMatch {
-            path: path_full.clone(),
-            path_lossy: path_full.to_string_lossy().to_string(),
-            workspace_definition_name: None,
-        };
-        path_match
+        match SafePath::try_from(path_full.as_path()) {
+            Ok(p) => p,
+            Err(_) => anyhow::bail!("Path is not valid UTF-8"),
+        }
     } else {
-        let mut matched_workspaces = HashMap::<String, WorkspaceMatch>::new();
         for dir in &config.search_paths {
-            find_workspaces_in_dir(dir.as_str(), &config, &mut matched_workspaces);
+            match SafePath::try_from(Path::new(dir)) {
+                Ok(_) => find_workspaces_in_dir(dir.as_str(), &config, &mut matched_workspaces),
+                Err(_) => {
+                    anyhow::bail!("Path is not valid UTF-8: {}", dir);
+                }
+            }
         }
         let workspace_name = get_skim_selection_from_slice(
             &matched_workspaces
                 .keys()
-                .map(std::convert::AsRef::as_ref)
+                .map(|k| k.path.as_str())
                 .collect::<Vec<&str>>(),
             "Select a workspace: ",
         )?;
-        match matched_workspaces.remove(&workspace_name) {
-            Some(workspace_match) => workspace_match,
-            None => anyhow::bail!("Failed to find workspace match for {}", workspace_name),
-        }
+        SafePath::try_from(Path::new(workspace_name.as_str()))?
     };
-    open_workspace(&workspace_match, &mut config, &args)?;
+
+    let workspace_type = matched_workspaces.get(&workspace_path);
+    open_workspace(&workspace_path, workspace_type.copied(), &config, &args)?;
 
     Ok(())
 }

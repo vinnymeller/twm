@@ -74,13 +74,12 @@ Here is the example config I used to while developing
 search_paths:  # directories we should begin searching for workspaces in. i just use home. shell expansion is supported
     - "~"      # default: ["~"]
 
-exclude_path_components:  # search branches will be pruned if they contain any of these substrings
-  - /.git
-  - /.direnv
-  - /.nix-
+exclude_path_components:  # search branches will be pruned the path being explored contains any of these components
+  - .git
+  - .direnv
   - node_modules
-  - /venv
-  - /target
+  - venv
+  - target
 
 max_search_depth: 5  # how deep we should search for workspaces (default: 3)
 
@@ -164,6 +163,3 @@ The clippy lint I've been using is `cargo clippy -- -D clippy::pedantic -A clipp
 ## License
 
 GPL v2.0
-
-
-

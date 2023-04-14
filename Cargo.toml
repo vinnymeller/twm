@@ -16,6 +16,7 @@ clap = { version = "4.1", features = ["cargo", "derive"] }
 config = "0.13"
 serde = { version = "1", features = ["derive"] }
 libc = "0.2"
+indexmap = "1.9"
 shellexpand = "3"
 skim = "0.10"
 walkdir = "2"

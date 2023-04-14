@@ -1,5 +1,7 @@
 use anyhow::{Context, Result};
+use indexmap::IndexMap;
 use serde::Deserialize;
+use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
@@ -30,8 +32,8 @@ struct RawTwmGlobal {
 pub struct TwmGlobal {
     pub search_paths: Vec<String>,
     pub exclude_path_components: Vec<String>,
-    pub workspace_definitions: Vec<WorkspaceDefinition>, // preserve order of insertion since order is implicitly the priority
-    pub layouts: Vec<LayoutDefinition>,
+    pub workspace_definitions: IndexMap<String, WorkspaceDefinition>, // preserve order of insertion since order is implicitly the priority
+    pub layouts: HashMap<String, LayoutDefinition>,
     pub max_search_depth: usize,
 }
 
@@ -43,7 +45,7 @@ pub struct TwmLocal {
 impl TryFrom<RawTwmGlobal> for TwmGlobal {
     type Error = anyhow::Error;
 
-    fn try_from(raw_config: RawTwmGlobal) -> std::result::Result<Self, Self::Error> {
+    fn try_from(raw_config: RawTwmGlobal) -> Result<Self> {
         // search paths are the only place we need to worry about shell expansion
         let search_paths = match raw_config.search_paths {
             Some(paths) => paths,
@@ -61,14 +63,36 @@ impl TryFrom<RawTwmGlobal> for TwmGlobal {
             Some(workspace_definitions) => workspace_definitions,
             None => vec![WorkspaceDefinition {
                 name: String::from("default"),
-                has_any_file: vec![".git".to_string()],
+                has_any_file: vec![".git".to_string(), ".twm.yaml".to_string()],
                 default_layout: None,
             }],
         };
+        let workspace_definitions: IndexMap<String, WorkspaceDefinition> = workspace_definitions
+            .into_iter()
+            .map(|workspace_definition| (workspace_definition.name.clone(), workspace_definition))
+            .collect();
 
         let layouts = raw_config.layouts.unwrap_or_default();
+        let layouts: HashMap<String, LayoutDefinition> = layouts
+            .into_iter()
+            .map(|layout| (layout.name.clone(), layout))
+            .collect();
 
         let max_search_depth = raw_config.max_search_depth.unwrap_or(3);
+
+        // originally i didnt want to do this here but it takes essentially no time
+        // and makes the experience using it better imo
+        for workspace_definition in workspace_definitions.values() {
+            if let Some(layout_name) = &workspace_definition.default_layout {
+                if !layouts.contains_key(layout_name) {
+                    anyhow::bail!(
+                        "Workspace {} refers to a layout {} that does not exist.",
+                        workspace_definition.name,
+                        layout_name
+                    );
+                }
+            }
+        }
 
         let config = TwmGlobal {
             search_paths,
@@ -110,6 +134,22 @@ impl FromStr for RawTwmGlobal {
     }
 }
 
+impl TwmGlobal {
+    pub fn load() -> Result<Self> {
+        let xdg_dirs = xdg::BaseDirectories::with_prefix(clap::crate_name!())
+            .with_context(|| "Failed to load XDG dirs.")?;
+        let config_file_name = format!("{}.yaml", clap::crate_name!());
+        let config_path = xdg_dirs.find_config_file(config_file_name);
+        let raw_config = match config_path {
+            Some(path) => RawTwmGlobal::try_from(&path),
+            None => RawTwmGlobal::from_str(""),
+        }?;
+        let config = TwmGlobal::try_from(raw_config)
+            .with_context(|| "Failed to validate configuration settings.")?;
+        Ok(config)
+    }
+}
+
 impl FromStr for TwmLocal {
     type Err = anyhow::Error;
 
@@ -142,16 +182,14 @@ impl TwmLocal {
     }
 }
 
-pub fn load() -> Result<TwmGlobal> {
-    let xdg_dirs = xdg::BaseDirectories::with_prefix(clap::crate_name!())
-        .with_context(|| "Failed to load XDG dirs.")?;
-    let config_file_name = format!("{}.yaml", clap::crate_name!());
-    let config_path = xdg_dirs.find_config_file(&config_file_name);
-    let raw_config = match config_path {
-        Some(path) => RawTwmGlobal::try_from(&path),
-        None => RawTwmGlobal::from_str(""),
-    }?;
-    let config = TwmGlobal::try_from(raw_config)
-        .with_context(|| "Failed to validate configuration settings.")?;
-    Ok(config)
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    #[test]
+    fn test_empty_config_is_valid() {
+        let raw_config = RawTwmGlobal::from_str("").unwrap();
+        let _ = TwmGlobal::try_from(raw_config).unwrap();
+    }
 }

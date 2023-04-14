@@ -1,19 +1,20 @@
 use crate::cli::Arguments;
 use crate::config::{LayoutDefinition, TwmGlobal, TwmLocal};
-use crate::matches::WorkspaceMatch;
+use crate::matches::SafePath;
 use crate::picker::get_skim_selection_from_slice;
 use anyhow::{bail, Context, Result};
 use libc::execvp;
 use std::ffi::CString;
+use std::path::Path;
 use std::process::Command;
 
 pub struct SessionName {
     name: String,
 }
 
-impl From<&String> for SessionName {
+impl From<&str> for SessionName {
     // take the last 2 parts of the path and join them back together, replacing any illegal characters with an underscore
-    fn from(s: &String) -> Self {
+    fn from(s: &str) -> Self {
         let mut last_two_parts: Vec<&str> = s.split('/').rev().take(2).collect();
         last_two_parts.reverse();
 
@@ -105,12 +106,16 @@ fn send_commands_to_session(session_name: &str, commands: &Vec<String>) -> Resul
 }
 
 fn get_layout_selection(twm_config: &TwmGlobal) -> Result<String> {
-    let layouts_list: Vec<&str> = twm_config.layouts.iter().map(|l| l.name.as_ref()).collect();
+    let layouts_list: Vec<&str> = twm_config
+        .layouts
+        .keys()
+        .map(std::convert::AsRef::as_ref)
+        .collect();
     get_skim_selection_from_slice(&layouts_list, "Select a layout: ")
 }
 
 fn get_layout_to_use<'a>(
-    workspace_match: &WorkspaceMatch,
+    workspace_type: Option<&str>,
     twm_config: &'a TwmGlobal,
     cli_config: &Arguments,
     local_config: &'a Option<TwmLocal>,
@@ -118,11 +123,7 @@ fn get_layout_to_use<'a>(
     // if user wants to choose a layout do this first
     if cli_config.layout {
         let layout_name = get_layout_selection(twm_config)?;
-        for layout in &twm_config.layouts {
-            if layout.name == layout_name {
-                return Ok(Some(layout));
-            }
-        }
+        return Ok(twm_config.layouts.get(&layout_name));
     }
 
     // next check if a local layout exists
@@ -130,33 +131,34 @@ fn get_layout_to_use<'a>(
         return Ok(Some(&local_layout.layout));
     }
 
-    // lastly check to see if the workspace has a default layout defined and use that if so
-    if let Some(workspace_def_default_name) = &workspace_match.workspace_definition_name {
-        for workspace in &twm_config.workspace_definitions {
-            if workspace_def_default_name == &workspace.name {
-                if let Some(layout_name) = &workspace.default_layout {
-                    for layout in &twm_config.layouts {
-                        if &layout.name == layout_name {
-                            return Ok(Some(layout));
-                        }
-                    }
-                }
+    match workspace_type {
+        Some(t) => {
+            if let Some(layout) = &twm_config
+                .workspace_definitions
+                .get(t)
+                .expect("Workspace type not found!")
+                .default_layout
+            {
+                Ok(twm_config.layouts.get(layout))
+            } else {
+                Ok(None)
             }
         }
+        None => Ok(None),
     }
-    Ok(None)
 }
 
 pub fn open_workspace(
-    workspace_match: &WorkspaceMatch,
-    config: &mut TwmGlobal,
+    workspace_path: &SafePath,
+    workspace_type: Option<&str>,
+    config: &TwmGlobal,
     args: &Arguments,
 ) -> Result<()> {
-    let tmux_name = SessionName::from(&workspace_match.path_lossy);
+    let tmux_name = SessionName::from(workspace_path.path.as_str());
     if !tmux_has_session(&tmux_name.name)? {
-        create_tmux_session(&tmux_name, &workspace_match.path_lossy)?;
-        let local_config = TwmLocal::load(&workspace_match.path)?;
-        let layout = get_layout_to_use(workspace_match, config, args, &local_config)?;
+        create_tmux_session(&tmux_name, workspace_path.path.as_str())?;
+        let local_config = TwmLocal::load(Path::new(workspace_path.path.as_str()))?;
+        let layout = get_layout_to_use(workspace_type, config, args, &local_config)?;
         if let Some(layout) = layout {
             send_commands_to_session(&tmux_name.name, &layout.commands)?;
         }
