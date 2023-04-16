@@ -54,8 +54,8 @@ pub fn parse() -> Result<()> {
         SafePath::try_from(Path::new(workspace_name.as_str()))?
     };
 
-    let workspace_type = matched_workspaces.get(&workspace_path);
-    open_workspace(&workspace_path, workspace_type.copied(), &config, &args)?;
+    let workspace_type = matched_workspaces.get(&workspace_path).copied();
+    open_workspace(&workspace_path, workspace_type, &config, &args)?;
 
     Ok(())
 }

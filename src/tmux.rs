@@ -44,8 +44,24 @@ fn run_tmux_command(args: &[&str]) -> Result<()> {
     Ok(())
 }
 
-fn create_tmux_session(name: &SessionName, path: &str) -> Result<()> {
-    run_tmux_command(&["new-session", "-ds", &name.name, "-c", path]).with_context(|| {
+fn create_tmux_session(name: &SessionName, workspace_type: Option<&str>, path: &str) -> Result<()> {
+    run_tmux_command(&[
+        "new-session",
+        "-ds",
+        &name.name,
+        "-c",
+        path,
+        // set TWM env vars for the session
+        "-e",
+        "TWM=1",
+        "-e",
+        &format!("TWM_ROOT={}", path),
+        "-e",
+        &format!("TWM_TYPE={}", workspace_type.unwrap_or("")),
+        "-e",
+        &format!("TWM_NAME={}", name.name),
+    ])
+    .with_context(|| {
         format!(
             "Failed to create tmux session with name {} at path {path}",
             &name.name
@@ -156,7 +172,7 @@ pub fn open_workspace(
 ) -> Result<()> {
     let tmux_name = SessionName::from(workspace_path.path.as_str());
     if !tmux_has_session(&tmux_name.name)? {
-        create_tmux_session(&tmux_name, workspace_path.path.as_str())?;
+        create_tmux_session(&tmux_name, workspace_type, workspace_path.path.as_str())?;
         let local_config = TwmLocal::load(Path::new(workspace_path.path.as_str()))?;
         let layout = get_layout_to_use(workspace_type, config, args, &local_config)?;
         if let Some(layout) = layout {
