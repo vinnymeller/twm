@@ -45,6 +45,7 @@ Usage: twm [OPTIONS]
 Options:
   -l, --layout       Prompt user to select a layout to open the workspace with
   -p, --path <PATH>  Open the given path as a workspace
+  -n, --name <NAME>  Force the workspace to be opened with the given name
   -h, --help         Print help
   -V, --version      Print version
 ```
@@ -58,7 +59,7 @@ Options:
 
 Example use cases:
 - keybind or alias to return to the root of the current workspace
-- 
+-
 
 ## Installation
 The easiest way to install is to use cargo

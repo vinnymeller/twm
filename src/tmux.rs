@@ -170,7 +170,10 @@ pub fn open_workspace(
     config: &TwmGlobal,
     args: &Arguments,
 ) -> Result<()> {
-    let tmux_name = SessionName::from(workspace_path.path.as_str());
+    let tmux_name = match &args.name {
+        Some(name) => SessionName::from(name.as_str()),
+        None => SessionName::from(workspace_path.path.as_str()),
+    };
     if !tmux_has_session(&tmux_name.name)? {
         create_tmux_session(&tmux_name, workspace_type, workspace_path.path.as_str())?;
         let local_config = TwmLocal::load(Path::new(workspace_path.path.as_str()))?;

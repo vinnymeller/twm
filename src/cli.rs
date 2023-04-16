@@ -20,6 +20,10 @@ pub struct Arguments {
     #[clap(short, long)]
     /// Open the given path as a workspace.
     path: Option<String>,
+
+    #[clap(short, long)]
+    /// Force the workspace to be opened with the given name.
+    pub name: Option<String>,
 }
 
 pub fn parse() -> Result<()> {
