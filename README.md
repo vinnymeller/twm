@@ -151,6 +151,8 @@ layouts:                           # our list of layouts just have names and a l
 
 ### Example local config
 
+**Note:** `twm` will search up the directory tree for a `.twml.yaml` file. If it finds one, it will be used instead of the default for your workspace type. This is useful for worktrees, where you may not want to check in the layout to source control, but have the same layout apply to all branches. You can simply put `.twm.yaml` in the worktree root to achieve this.
+
 ```yaml
 # ~/dev/random/project/dir/.twm.yaml
 

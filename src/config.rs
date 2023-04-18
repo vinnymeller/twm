@@ -169,6 +169,10 @@ impl FromStr for TwmLocal {
 }
 
 impl TwmLocal {
+    
+    /// Attemps to load a local config file from the given path.
+    /// Will return Ok(None) if no config file is found.
+    /// Errors if the config file is found but results in an error during parsing.
     pub fn load(path: &Path) -> Result<Option<Self>> {
         const CONFIG_FILE_NAME: &str = ".twm.yaml";
         let config_path = path.join(CONFIG_FILE_NAME);

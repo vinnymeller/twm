@@ -24,6 +24,10 @@ pub struct Arguments {
     #[clap(short, long)]
     /// Force the workspace to be opened with the given name.
     pub name: Option<String>,
+
+    #[clap(short, long)]
+    /// Don't attach to the workspace session after opening it.
+    pub dont_attach: bool,
 }
 
 pub fn parse() -> Result<()> {

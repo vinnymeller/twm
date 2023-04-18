@@ -164,6 +164,17 @@ fn get_layout_to_use<'a>(
     }
 }
 
+fn find_config_file(workspace_path: &Path) -> Result<Option<TwmLocal>> {
+    let local_config = TwmLocal::load(workspace_path)?;
+    if let Some(local_config) = local_config {
+        return Ok(Some(local_config));
+    }
+    match workspace_path.parent() {
+        Some(parent) => find_config_file(parent),
+        None => Ok(None),
+    }
+}
+
 pub fn open_workspace(
     workspace_path: &SafePath,
     workspace_type: Option<&str>,
@@ -176,12 +187,14 @@ pub fn open_workspace(
     };
     if !tmux_has_session(&tmux_name.name)? {
         create_tmux_session(&tmux_name, workspace_type, workspace_path.path.as_str())?;
-        let local_config = TwmLocal::load(Path::new(workspace_path.path.as_str()))?;
+        let local_config = find_config_file(Path::new(workspace_path.path.as_str()))?;
         let layout = get_layout_to_use(workspace_type, config, args, &local_config)?;
         if let Some(layout) = layout {
             send_commands_to_session(&tmux_name.name, &layout.commands)?;
         }
     }
-    attach_to_tmux_session(&tmux_name.name)?;
+    if !args.dont_attach {
+        attach_to_tmux_session(&tmux_name.name)?;
+    }
     Ok(())
 }
