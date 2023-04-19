@@ -10,19 +10,27 @@ use crate::tmux::open_workspace;
 use clap::Parser;
 
 #[derive(Parser, Default, Debug)]
-#[clap(author = "Vinny Meller", version, about)]
-/// A utility for managing workspaces in tmux.
+#[clap(author = "Vinny Meller", version)]
+/// twm (tmux workspace manager) is a customizable tool for managing workspaces in tmux sessions.
+///
+/// Workspaces are defined as a directory matching any workspace pattern from your configuration. If no configuration is set, any directory containing a `.git` file/folder or a `.twm.yaml` file is considered a workspace.
 pub struct Arguments {
     #[clap(short, long)]
-    /// Prompt user to select a layout to open the workspace with.
+    /// Prompt user to select a globally-defined layout to open the workspace with.
+    ///
+    /// Using this option will override any other layout definitions.
     pub layout: bool,
 
     #[clap(short, long)]
     /// Open the given path as a workspace.
+    ///
+    /// Using this option does not require that the path be a valid workspace according to your configuration.
     path: Option<String>,
 
     #[clap(short, long)]
     /// Force the workspace to be opened with the given name.
+    ///
+    /// twm will not store any knowledge of the fact that you manually named the workspace. I.e. if you open the workspace at path `/home/user/dev/api` and name it `jimbob`, and then open the same workspace again manually, you will have two instances of the workspace open with different names.
     pub name: Option<String>,
 
     #[clap(short, long)]
@@ -30,6 +38,7 @@ pub struct Arguments {
     pub dont_attach: bool,
 }
 
+/// Parses the command line arguments and runs the program. Called from `main.rs`.
 pub fn parse() -> Result<()> {
     let args = Arguments::parse();
 

@@ -15,16 +15,14 @@ pub struct SessionName {
 impl From<&str> for SessionName {
     // take the last 2 parts of the path and join them back together, replacing any illegal characters with an underscore
     fn from(s: &str) -> Self {
-        let mut last_two_parts: Vec<&str> = s.split('/').rev().take(2).collect();
-        last_two_parts.reverse();
-
-        let mut name = last_two_parts.join("/");
-
-        // i know theres more but ill add them when i run into them again
-        let disallowed_chars = vec!["."];
-        for disallowed_char in disallowed_chars {
-            name = name.replace(disallowed_char, "_");
-        }
+        let name: String = s
+            .chars()
+            .map(|c| match c {
+                // TODO: go through and find where tmux does the char replacement to get a full list of illegal characters. is it just this?
+                '.' => '_',
+                _ => c,
+            })
+            .collect();
         SessionName { name }
     }
 }
@@ -183,7 +181,17 @@ pub fn open_workspace(
 ) -> Result<()> {
     let tmux_name = match &args.name {
         Some(name) => SessionName::from(name.as_str()),
-        None => SessionName::from(workspace_path.path.as_str()),
+        None => {
+            let mut path_parts: Vec<&str> = workspace_path
+                .path
+                .split('/')
+                .rev()
+                .take(config.session_name_path_components)
+                .collect();
+            path_parts.reverse();
+            let raw_name = path_parts.join("/");
+            SessionName::from(raw_name.as_str())
+        }
     };
     if !tmux_has_session(&tmux_name.name)? {
         create_tmux_session(&tmux_name, workspace_type, workspace_path.path.as_str())?;

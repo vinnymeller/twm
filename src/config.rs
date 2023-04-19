@@ -24,6 +24,7 @@ struct RawTwmGlobal {
     search_paths: Option<Vec<String>>,
     workspace_definitions: Option<Vec<WorkspaceDefinition>>,
     max_search_depth: Option<usize>,
+    session_name_path_components: Option<usize>,
     exclude_path_components: Option<Vec<String>>,
     layouts: Option<Vec<LayoutDefinition>>,
 }
@@ -33,6 +34,7 @@ pub struct TwmGlobal {
     pub search_paths: Vec<String>,
     pub exclude_path_components: Vec<String>,
     pub workspace_definitions: IndexMap<String, WorkspaceDefinition>, // preserve order of insertion since order is implicitly the priority
+    pub session_name_path_components: usize,
     pub layouts: HashMap<String, LayoutDefinition>,
     pub max_search_depth: usize,
 }
@@ -79,6 +81,7 @@ impl TryFrom<RawTwmGlobal> for TwmGlobal {
             .collect();
 
         let max_search_depth = raw_config.max_search_depth.unwrap_or(3);
+        let session_name_path_components = raw_config.session_name_path_components.unwrap_or(2);
 
         // originally i didnt want to do this here but it takes essentially no time
         // and makes the experience using it better imo
@@ -100,6 +103,7 @@ impl TryFrom<RawTwmGlobal> for TwmGlobal {
             workspace_definitions,
             layouts,
             max_search_depth,
+            session_name_path_components,
         };
 
         Ok(config)
@@ -169,7 +173,6 @@ impl FromStr for TwmLocal {
 }
 
 impl TwmLocal {
-    
     /// Attemps to load a local config file from the given path.
     /// Will return Ok(None) if no config file is found.
     /// Errors if the config file is found but results in an error during parsing.

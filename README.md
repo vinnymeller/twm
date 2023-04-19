@@ -15,39 +15,58 @@ I felt like something for *my* workflow was missing from each of these, hence th
 
 ## What features does it have?
 
-- [x] fuzzy find user-defined workspaces to open in tmux
-- [x] no external dependencies (unless you count tmux?)
-- [x] define separate types of workspaces (e.g. python, node, rust, etc) to handle them differently
-- [x] define global layouts to initialize your newly-opened workspaces with
-- [x] default layouts optional for each workspace type
-- [x] option to override default layouts with any global layout
-- [x] local layouts within workspace directories to take precedence over defaults
-- [x] option to open an arbitrary directory as a new workspace
-- [x] blazingly fast (in spite of my code not because of it - rust!)
-- [x] will open tmux properly whether it is already running or not
-- [x] sets env variables within your tmux session to make it easy to write helper scripts and keybinds
-- [ ] tests (coming soon i swear)
-- [ ] search up directories to see if you can inherit local layout from a parent (useful for worktrees)
-- [ ] support for more complex matching (e.g. regex, glob, combined include/exclude lists)
-- [ ] just general code improvements i hope
+- Fuzzy find workspaces to open in tmux
+- Is able to open workspaces in tmux even if not run from within a tmux session
+- Highly configurable
+- Define different default behaviors for different workspace types
+- Sets useful environment variables (prefixed with `TWM_`) within your sessions to simplify extending `twm`'s functionality with other scripts
 
 
-I've tried to make sure to not add anything I can easily accomplish with other tools or simple scripts, e.g. `tmux-sessionizer` has builtin support for Git Worktrees, but I didn't like how it was implemented.
+I've explicitly avoided adding anything to `twm` that can be easily accomplished with scripts or other tools to a) avoid bloating this codebase and b) not force my workflow on anyone else.
 
-The example config will have each worktree show up as a separate workspace
+With that said, if it is *possible* but particularly *difficult* to accomplish something with other tools, I'm open to adding it.
+
+Examples of things that definitely won't be added:
+
+- Killing a workspace session and opening the most recent/default/etc one. Very simple shell script.
+
+Example I'm on the fence about:
+- Support for git worktrees. `tmux-sessionizer` has this, but I don't like how it's implemented. I have my own script for handling worktrees, but I don't particularly love it either, and it's not a trivial script. I do like it better though.
+
 
 ## Usage
 ```
-A utility for managing workspaces in tmux
+twm (tmux workspace manager) is a customizable tool for managing workspaces in tmux sessions.
+
+Workspaces are defined as a directory matching any workspace pattern from your configuration. If no configuration is set, any directory containing a `.git` file/folder or a `.twm.yaml` file is considered a workspace.
 
 Usage: twm [OPTIONS]
 
 Options:
-  -l, --layout       Prompt user to select a layout to open the workspace with
-  -p, --path <PATH>  Open the given path as a workspace
-  -n, --name <NAME>  Force the workspace to be opened with the given name
-  -h, --help         Print help
-  -V, --version      Print version
+  -l, --layout
+          Prompt user to select a globally-defined layout to open the workspace with.
+
+          Using this option will override any other layout definitions.
+
+  -p, --path <PATH>
+          Open the given path as a workspace.
+
+          Using this option does not require that the path be a valid workspace according to your configuration.
+
+  -n, --name <NAME>
+          Force the workspace to be opened with the given name.
+
+          twm will not store any knowledge of the fact that you manually named the workspace. I.e. if you open the workspace at path `/home/user/dev/api` and name it `jimbob`, and then open the same workspace again manually, you will have two instances of the workspace open with different names.
+
+  -d, --dont-attach
+          Don't attach to the workspace session after opening it
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+  -V, --version
+          Print version
+
 ```
 
 ### Environment Variables
@@ -62,118 +81,30 @@ Example use cases:
 -
 
 ## Installation
-The easiest way to install is to use cargo
+The easiest way to install is to use Cargo:
 ```bash
 cargo install twm
 ```
 
-It will be available as `twm` in your path.
-
-Coming to NixOS soon!
+It is also available on NixOS via [nixpkgs](https://search.nixos.org/packages?channel=unstable&show=twm&from=0&size=50&sort=relevance&type=packages&query=twm)
 
 ## Configuration
-
-Your config file should be located at $XDG_CONFIG_HOME/twm/twm.yaml (default: ~/.config/twm/twm.yaml).
-
-`twm` should run with some sensible defaults if you don't have a config file, but it certainly won't work for everyone.
+See [CONFIGURATION.md](./doc/CONFIGURATION.md)
 
 
-### Example config
+## Example `twm` tmux keybindings
 
-Here is the example config I used to while developing
-```yaml
-# ~/.config/twm/twm.yaml
+```tmux
+# ~/.tmux.conf
 
-search_paths:  # directories we should begin searching for workspaces in. i just use home. shell expansion is supported
-    - "~"      # default: ["~"]
-
-exclude_path_components:  # search branches will be pruned the path being explored contains any of these components
-  - .git
-  - .direnv
-  - node_modules
-  - venv
-  - target
-
-max_search_depth: 5  # how deep we should search for workspaces (default: 3)
-
-workspace_definitions:             # our list of workspaces, each with different properties
-    - name: python                 # they all have to be named
-      has_any_file:                # if any file matches this list, we consider it a match, since its "has_any_file"
-        - requirements.txt         # more complex matching isn't implemented currently
-        - setup.py
-        - pyproject.toml
-        - Pipfile
-      default_layout: python-dev   # the hierarchy for how a layout gets chosen is user opts to select manually > local layout > default for workspace type
-
-    - name: node                   # the order of these definitions matters - if a directory matches multiple, the first one wins
-      has_any_file:
-        - package.json
-        - yarn.lock
-        - .nvmrc
-      default_layout: node-dev
-
-    - name: rust
-      has_any_file:
-        - Cargo.toml
-        - Cargo.lock
-      default_layout: rust-dev
-
-    - name: other
-      has_any_file:
-        - .git
-        - flake.nix
-        - .twm.yaml
-
-layouts:                           # our list of layouts just have names and a list of commands. the command get sent directly with tmux send-keys
-    - name: python-dev             # i chose not to use any custom configuration becuase that would be a lot of work to basically maintain a subset of possible functionality
-      commands:
-        - tmux split-window -h
-        - tmux resize-pane -x 80
-        - tmux split-window -v
-        - tmux send-keys -t 0 'nvim .' C-m
-
-    - name: rust-dev
-      commands:
-        - tmux split-window -h
-        - tmux resize-pane -x 80
-        - tmux select-pane -t 0
-        - tmux send-keys -t 1 'cargo watch -x test -x run' C-m
-        - nvim .
-
-    - name: python-debugger
-      commands:
-        - tmux split-window -h
-        - tmux resize-pane -x 80
-        - tmux split-window -v
-        - tmux send-keys -t 0 'nvim .' C-m
-        - tmux send-keys -t 1 'python -m pdb' C-m
-```
-
-### Example local config
-
-**Note:** `twm` will search up the directory tree for a `.twml.yaml` file. If it finds one, it will be used instead of the default for your workspace type. This is useful for worktrees, where you may not want to check in the layout to source control, but have the same layout apply to all branches. You can simply put `.twm.yaml` in the worktree root to achieve this.
-
-```yaml
-# ~/dev/random/project/dir/.twm.yaml
-
-layout:
-  name: layout-for-this-project
-  commands:
-    - tmux split-window -h
-    - tmux split-window -h
-    - tmux split-window -h
-    - tmux split-window -h
+bind-key -r f run-shell "tmux neww twm"
+bind-key -r F run-shell "tmux neww twm -l"
+bind-key -r e run-shell "tmux switch -t $TWM_DEFAULT"  # i set TWM_DEFAULT in my shellrc
 ```
 
 ## Contributing
 
-If for some reason you want to contribute to this, just be warned, this is the first thing I've written in rust.
-
-As long as your changes don't go against anything I've said in this README, I'd imagine I'll be happy to merge them.
-
-Just use the standard cargo fmt and clippy. CI should tell you if you've messed it up.
-
-The clippy lint I've been using is `cargo clippy -- -D clippy::pedantic -A clippy::missing_errors_doc`
+Contributions are more than welcome! If there are workflows you think would be useful to add, or if you find a bug, please open an issue or PR. For style and linting, I simply use `cargo fmt` and `clippy::all`.
 
 ## License
 
