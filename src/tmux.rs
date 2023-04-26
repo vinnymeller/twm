@@ -6,10 +6,19 @@ use anyhow::{bail, Context, Result};
 use libc::execvp;
 use std::ffi::CString;
 use std::path::Path;
-use std::process::Command;
+use std::process::{Command, Output};
 
 pub struct SessionName {
     name: String,
+}
+
+impl SessionName {
+    pub fn new(path: &SafePath, path_components: usize) -> Self {
+        let mut path_parts: Vec<&str> = path.path.split('/').rev().take(path_components).collect();
+        path_parts.reverse();
+        let raw_name = path_parts.join("/");
+        Self::from(raw_name.as_str())
+    }
 }
 
 impl From<&str> for SessionName {
@@ -27,7 +36,7 @@ impl From<&str> for SessionName {
     }
 }
 
-fn run_tmux_command(args: &[&str]) -> Result<()> {
+fn run_tmux_command(args: &[&str]) -> Result<Output> {
     let output = Command::new("tmux")
         .args(args)
         .output()
@@ -39,7 +48,7 @@ fn run_tmux_command(args: &[&str]) -> Result<()> {
             String::from_utf8_lossy(&output.stderr)
         );
     }
-    Ok(())
+    Ok(output)
 }
 
 fn create_tmux_session(name: &SessionName, workspace_type: Option<&str>, path: &str) -> Result<()> {
@@ -104,12 +113,35 @@ fn attach_to_tmux_session_outside_tmux(repo_name: &str) -> Result<()> {
     Err(anyhow::anyhow!("Unable to attach to tmux session!"))
 }
 
-fn tmux_has_session(session_name: &str) -> Result<bool> {
-    let output = Command::new("tmux")
-        .args(["has-session", "-t", session_name])
-        .output()
-        .with_context(|| "Failed to run tmux command.")?;
-    Ok(output.status.success())
+fn tmux_has_session(session_name: &SessionName) -> bool {
+    match run_tmux_command(&["has-session", "-t", &session_name.name]) {
+        Ok(output) => output.status.success(),
+        Err(_) => false,
+    }
+}
+
+fn get_twm_root_for_session(session_name: &SessionName) -> Result<String> {
+    let output = run_tmux_command(&["showenv", "-t", &session_name.name])?;
+    let out_str = String::from_utf8_lossy(&output.stdout);
+    let twm_root = out_str
+        .lines()
+        .find(|line| line.starts_with("TWM_ROOT="))
+        .with_context(|| {
+            format!(
+                "Failed to find TWM_ROOT variable in tmux session {}",
+                session_name.name
+            )
+        })?
+        .strip_prefix("TWM_ROOT=")
+        .with_context(|| {
+            format!(
+                "Failed to strip TWM_ROOT= prefix from tmux session {}",
+                session_name.name
+            )
+        })?
+        .to_string();
+
+    Ok(twm_root)
 }
 
 fn send_commands_to_session(session_name: &str, commands: &Vec<String>) -> Result<()> {
@@ -173,6 +205,37 @@ fn find_config_file(workspace_path: &Path) -> Result<Option<TwmLocal>> {
     }
 }
 
+fn get_session_name_recursive(path: &SafePath, path_components: usize) -> Result<SessionName> {
+    let name = SessionName::new(path, path_components);
+    // no session means we can use this name
+    if !tmux_has_session(&name) {
+        return Ok(name);
+    }
+
+    // if the name already exists, there are two cases:
+    // 1. the session is a twm session, in which case we can extract the TWM_ROOT env var to check if it matches the current path
+    // 2. the session is not a twm session, in which case we need to recurse and try a new name
+    match get_twm_root_for_session(&name) {
+        // if we successfully get the TWM_ROOT variable, we are in a TWM session. if TWM_ROOT matches the path we're currently trying
+        // to open, we can use this name and will simply attach to the existing session
+        Ok(twm_root) => {
+            if twm_root == path.path {
+                Ok(name)
+            } else {
+                // if TWM_ROOT doesn't match, we've had a name collision and need to recurse and try a new name with more path components
+                let new_name = get_session_name_recursive(path, path_components + 1)?;
+                Ok(new_name)
+            }
+        }
+        // if we fail to get the TWM_ROOT variable, either the session is not a TWM session or is broken (e.g. TWM_ROOT is not set)
+        // either way we still need to recurse for a new name
+        Err(_) => {
+            let new_name = get_session_name_recursive(path, path_components + 1)?;
+            Ok(new_name)
+        }
+    }
+}
+
 pub fn open_workspace(
     workspace_path: &SafePath,
     workspace_type: Option<&str>,
@@ -181,19 +244,9 @@ pub fn open_workspace(
 ) -> Result<()> {
     let tmux_name = match &args.name {
         Some(name) => SessionName::from(name.as_str()),
-        None => {
-            let mut path_parts: Vec<&str> = workspace_path
-                .path
-                .split('/')
-                .rev()
-                .take(config.session_name_path_components)
-                .collect();
-            path_parts.reverse();
-            let raw_name = path_parts.join("/");
-            SessionName::from(raw_name.as_str())
-        }
+        None => get_session_name_recursive(workspace_path, config.session_name_path_components)?,
     };
-    if !tmux_has_session(&tmux_name.name)? {
+    if !tmux_has_session(&tmux_name) {
         create_tmux_session(&tmux_name, workspace_type, workspace_path.path.as_str())?;
         let local_config = find_config_file(Path::new(workspace_path.path.as_str()))?;
         let layout = get_layout_to_use(workspace_type, config, args, &local_config)?;

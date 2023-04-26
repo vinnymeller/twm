@@ -81,7 +81,7 @@ impl TryFrom<RawTwmGlobal> for TwmGlobal {
             .collect();
 
         let max_search_depth = raw_config.max_search_depth.unwrap_or(3);
-        let session_name_path_components = raw_config.session_name_path_components.unwrap_or(2);
+        let session_name_path_components = raw_config.session_name_path_components.unwrap_or(1);
 
         // originally i didnt want to do this here but it takes essentially no time
         // and makes the experience using it better imo
