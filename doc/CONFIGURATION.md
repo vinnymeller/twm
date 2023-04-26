@@ -22,7 +22,9 @@ exclude_path_components:  # search branches will be pruned the path being explor
   - target
 
 max_search_depth: 5  # how deep we should search for workspaces (default: 3)
-session_name_path_components: 3    # how many parts of the workspace path to use in generating the session name (to avoid collisions) (default: 2)
+session_name_path_components: 3    # how many parts of the workspace path to use in generating the session name by default
+                                   # if you attempt to open two separate workspaces that would generate the same session name,
+                                   # this value will be incremented until a unique session name is found
 
 workspace_definitions:             # our list of workspaces, each with different properties
     - name: python                 # they all have to be named
