@@ -1372,7 +1372,7 @@ dependencies = [
 
 [[package]]
 name = "twm"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "clap 4.2.4",
