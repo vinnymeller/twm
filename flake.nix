@@ -24,6 +24,7 @@
             # pre-commit 
             # rustPackages.clippy 
             rustVersion
+            rust-analyzer
             ];
           RUST_SRC_PATH = rustPlatform.rustLibSrc;
           PKG_CONFIG_PATH = "${pkgs.openssl.dev}/lib/pkgconfig";
