@@ -164,7 +164,7 @@ fn get_layout_to_use<'a>(
     workspace_type: Option<&str>,
     twm_config: &'a TwmGlobal,
     cli_config: &Arguments,
-    local_config: &'a Option<TwmLocal>,
+    local_config: Option<&'a TwmLocal>,
 ) -> Result<Option<&'a LayoutDefinition>> {
     // if user wants to choose a layout do this first
     if cli_config.layout {
@@ -249,7 +249,7 @@ pub fn open_workspace(
     if !tmux_has_session(&tmux_name) {
         create_tmux_session(&tmux_name, workspace_type, workspace_path.path.as_str())?;
         let local_config = find_config_file(Path::new(workspace_path.path.as_str()))?;
-        let layout = get_layout_to_use(workspace_type, config, args, &local_config)?;
+        let layout = get_layout_to_use(workspace_type, config, args, local_config.as_ref())?;
         if let Some(layout) = layout {
             send_commands_to_session(&tmux_name.name, &layout.commands)?;
         }
