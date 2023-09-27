@@ -64,7 +64,55 @@ impl From<WorkspaceDefinitionConfig> for WorkspaceDefinition {
 #[derive(Deserialize, Debug)]
 pub struct LayoutDefinition {
     pub name: String,
-    pub commands: Vec<String>,
+    pub inherits: Option<Vec<String>>,
+    pub commands: Option<Vec<String>>,
+}
+
+pub struct LayoutContainer {
+    layouts: HashMap<String, LayoutDefinition>,
+}
+
+impl LayoutContainer {
+    pub fn add(&mut self, layout: LayoutDefinition) {
+        self.layouts.insert(layout.name.clone(), layout);
+    }
+
+    pub fn get(&self, name: &str) -> &LayoutDefinition {
+        match self.layouts.get(name) {
+            Some(layout) => layout,
+            None => panic!("Layout {} does not exist! Check your configuration", name),
+        }
+    }
+
+    pub fn get_commands<'a: 'c, 'b: 'c, 'c>(
+        &'a self,
+        layout: &'b LayoutDefinition,
+    ) -> Vec<&'c str> {
+        let mut commands = Vec::<&'a str>::new();
+
+        if let Some(layout_inherits) = &layout.inherits {
+            for layout_name in layout_inherits {
+                commands.extend(self.get_commands(self.get(layout_name)));
+            }
+        }
+
+        if let Some(layout_commands) = &layout.commands {
+            commands.extend(layout_commands.iter().map(String::as_str));
+        }
+
+        commands
+    }
+
+    pub fn get_commands_from_name(&self, layout_name: &str) -> Vec<&str> {
+        self.get_commands(self.get(layout_name))
+    }
+
+    pub fn get_layout_names(&self) -> Vec<&str> {
+        self.layouts
+            .keys()
+            .map(std::convert::AsRef::as_ref)
+            .collect()
+    }
 }
 
 #[derive(Deserialize, Debug)]
@@ -82,7 +130,7 @@ pub struct TwmGlobal {
     pub exclude_path_components: Vec<String>,
     pub workspace_definitions: IndexMap<String, WorkspaceDefinition>, // preserve order of insertion since order is implicitly the priority
     pub session_name_path_components: usize,
-    pub layouts: HashMap<String, LayoutDefinition>,
+    pub layouts: LayoutContainer,
     pub max_search_depth: usize,
 }
 
@@ -131,6 +179,7 @@ impl TryFrom<RawTwmGlobal> for TwmGlobal {
             .into_iter()
             .map(|layout| (layout.name.clone(), layout))
             .collect();
+        let layouts = LayoutContainer { layouts };
 
         let max_search_depth = raw_config.max_search_depth.unwrap_or(3);
         let session_name_path_components = raw_config.session_name_path_components.unwrap_or(1);
@@ -139,13 +188,7 @@ impl TryFrom<RawTwmGlobal> for TwmGlobal {
         // and makes the experience using it better imo
         for workspace_definition in workspace_definitions.values() {
             if let Some(layout_name) = &workspace_definition.default_layout {
-                if !layouts.contains_key(layout_name) {
-                    anyhow::bail!(
-                        "Workspace {} refers to a layout {} that does not exist.",
-                        workspace_definition.name,
-                        layout_name
-                    );
-                }
+                layouts.get(layout_name);
             }
         }
 

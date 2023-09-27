@@ -89,6 +89,20 @@ layouts:                           # our list of layouts just have names and a l
     - name: catchall-dev
       commands:
         - nvim .
+
+    - name: split-bottom-panes
+      commands:
+        - tmux split-window -v
+        - tmux resize-pane -y 20
+        - tmux split-window -h
+        - tmux select-pane -t 0
+
+    - name: syslog-monitor
+      inherits:
+        - split-bottom-panes       # you can also inherit layouts, which will just run the commands from the inherited layout before running your specified commands. these can be nested arbitrarily. this is useful when you have many layouts that should look similar but, for example, have different commands they should run
+      commands:
+        - tmux send-keys -t 1 'tail -f /var/log/syslog' C-m
+        - tmux send-keys -t 2 'journalctl -f' C-m
 ```
 
 ### Example local config

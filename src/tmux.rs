@@ -1,5 +1,5 @@
 use crate::cli::Arguments;
-use crate::config::{LayoutDefinition, TwmGlobal, TwmLocal};
+use crate::config::{TwmGlobal, TwmLocal};
 use crate::matches::SafePath;
 use crate::picker::get_skim_selection_from_slice;
 use anyhow::{bail, Context, Result};
@@ -144,7 +144,7 @@ fn get_twm_root_for_session(session_name: &SessionName) -> Result<String> {
     Ok(twm_root)
 }
 
-fn send_commands_to_session(session_name: &str, commands: &Vec<String>) -> Result<()> {
+fn send_commands_to_session(session_name: &str, commands: &[&str]) -> Result<()> {
     for command in commands {
         run_tmux_command(&["send-keys", "-t", session_name, command, "C-m"])?;
     }
@@ -152,29 +152,28 @@ fn send_commands_to_session(session_name: &str, commands: &Vec<String>) -> Resul
 }
 
 fn get_layout_selection(twm_config: &TwmGlobal) -> Result<String> {
-    let layouts_list: Vec<&str> = twm_config
-        .layouts
-        .keys()
-        .map(std::convert::AsRef::as_ref)
-        .collect();
-    get_skim_selection_from_slice(&layouts_list, "Select a layout: ")
+    let layout_names = twm_config.layouts.get_layout_names();
+
+    get_skim_selection_from_slice(&layout_names, "Select a layout: ")
 }
 
-fn get_layout_to_use<'a>(
+fn get_workspace_commands<'a>(
     workspace_type: Option<&str>,
     twm_config: &'a TwmGlobal,
     cli_config: &Arguments,
     local_config: Option<&'a TwmLocal>,
-) -> Result<Option<&'a LayoutDefinition>> {
+) -> Result<Option<Vec<&'a str>>> {
     // if user wants to choose a layout do this first
     if cli_config.layout {
         let layout_name = get_layout_selection(twm_config)?;
-        return Ok(twm_config.layouts.get(&layout_name));
+        return Ok(Some(
+            twm_config.layouts.get_commands_from_name(&layout_name),
+        ));
     }
 
     // next check if a local layout exists
-    if let Some(local_layout) = local_config {
-        return Ok(Some(&local_layout.layout));
+    if let Some(local) = local_config {
+        return Ok(Some(twm_config.layouts.get_commands(&local.layout)));
     }
 
     match workspace_type {
@@ -185,7 +184,7 @@ fn get_layout_to_use<'a>(
                 .expect("Workspace type not found!")
                 .default_layout
             {
-                Ok(twm_config.layouts.get(layout))
+                Ok(Some(twm_config.layouts.get_commands_from_name(layout)))
             } else {
                 Ok(None)
             }
@@ -249,9 +248,9 @@ pub fn open_workspace(
     if !tmux_has_session(&tmux_name) {
         create_tmux_session(&tmux_name, workspace_type, workspace_path.path.as_str())?;
         let local_config = find_config_file(Path::new(workspace_path.path.as_str()))?;
-        let layout = get_layout_to_use(workspace_type, config, args, local_config.as_ref())?;
-        if let Some(layout) = layout {
-            send_commands_to_session(&tmux_name.name, &layout.commands)?;
+        let commands = get_workspace_commands(workspace_type, config, args, local_config.as_ref())?;
+        if let Some(layout_commands) = commands {
+            send_commands_to_session(&tmux_name.name, &layout_commands)?;
         }
     }
     if !args.dont_attach {
