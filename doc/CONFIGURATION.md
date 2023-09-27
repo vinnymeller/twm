@@ -35,12 +35,28 @@ workspace_definitions:             # our list of workspaces, each with different
         - Pipfile
       default_layout: python-dev   # the hierarchy for how a layout gets chosen is user opts to select manually > local layout > default for workspace type
 
+    - name: go
+      has_all_files:               # if all files match this list, we consider it a match, since its "has_all_files"
+        - go.mod
+        - go.sum
+
+    - name: docker-compose         # you can also combine conditions, as in this example, a docker-compose workspace is matched only if we have *any* of the docker-compose files and both `.git` folder and a `Dockerfile`
+      has_any_file:
+        - docker-compose.yaml
+        - docker-compose.yml
+      has_all_files:
+        - Dockerfile
+        - .git
+
     - name: node                   # the order of these definitions matters - if a directory matches multiple, the first one wins
       has_any_file:
         - package.json
         - yarn.lock
         - .nvmrc
       default_layout: node-dev
+
+    - name: catchall               # without any conditions, all directories will match this wworkspace
+      default_layout: catchall-dev # this is the default layout for this workspace type
 
     - name: rust
       has_any_file:
@@ -68,6 +84,10 @@ layouts:                           # our list of layouts just have names and a l
         - tmux resize-pane -x 80
         - tmux select-pane -t 0
         - tmux send-keys -t 1 'cargo watch -x test -x run' C-m
+        - nvim .
+
+    - name: catchall-dev
+      commands:
         - nvim .
 ```
 

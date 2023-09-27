@@ -1,3 +1,7 @@
+// TODO: figure out how to handle turning the config file into the final structs used
+// throughout the program. this shit is a mess!!
+
+use crate::workspace_conditions::{HasAnyFileCondition, NullCondition, WorkspaceCondition};
 use anyhow::{Context, Result};
 use indexmap::IndexMap;
 use serde::Deserialize;
@@ -7,10 +11,54 @@ use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
 #[derive(Deserialize, Debug)]
+struct WorkspaceDefinitionConfig {
+    pub name: String,
+    pub has_any_file: Option<Vec<String>>,
+    pub has_all_files: Option<Vec<String>>,
+    pub default_layout: Option<String>,
+}
+
 pub struct WorkspaceDefinition {
     pub name: String,
-    pub has_any_file: Vec<String>,
+    pub conditions: Vec<Box<dyn WorkspaceCondition>>,
     pub default_layout: Option<String>,
+}
+
+impl From<WorkspaceDefinitionConfig> for WorkspaceDefinition {
+    fn from(config: WorkspaceDefinitionConfig) -> Self {
+        let mut conditions = Vec::<Box<dyn WorkspaceCondition>>::new();
+
+        if let Some(has_any_file) = config.has_any_file {
+            if !has_any_file.is_empty() {
+                let condition = HasAnyFileCondition {
+                    files: has_any_file,
+                };
+                let condition = Box::new(condition);
+                conditions.push(condition);
+            }
+        }
+
+        if let Some(has_all_files) = config.has_all_files {
+            if !has_all_files.is_empty() {
+                let condition = HasAnyFileCondition {
+                    files: has_all_files,
+                };
+                let condition = Box::new(condition);
+                conditions.push(condition);
+            }
+        }
+
+        if conditions.is_empty() {
+            let condition = Box::new(NullCondition {});
+            conditions.push(condition);
+        }
+
+        WorkspaceDefinition {
+            name: config.name,
+            conditions,
+            default_layout: config.default_layout,
+        }
+    }
 }
 
 #[derive(Deserialize, Debug)]
@@ -22,14 +70,13 @@ pub struct LayoutDefinition {
 #[derive(Deserialize, Debug)]
 struct RawTwmGlobal {
     search_paths: Option<Vec<String>>,
-    workspace_definitions: Option<Vec<WorkspaceDefinition>>,
+    workspace_definitions: Option<Vec<WorkspaceDefinitionConfig>>,
     max_search_depth: Option<usize>,
     session_name_path_components: Option<usize>,
     exclude_path_components: Option<Vec<String>>,
     layouts: Option<Vec<LayoutDefinition>>,
 }
 
-#[derive(Debug)]
 pub struct TwmGlobal {
     pub search_paths: Vec<String>,
     pub exclude_path_components: Vec<String>,
@@ -62,10 +109,15 @@ impl TryFrom<RawTwmGlobal> for TwmGlobal {
         let exclude_path_components = raw_config.exclude_path_components.unwrap_or_default();
 
         let workspace_definitions = match raw_config.workspace_definitions {
-            Some(workspace_definitions) => workspace_definitions,
+            Some(workspace_definitions) => workspace_definitions
+                .into_iter()
+                .map(WorkspaceDefinition::from)
+                .collect(),
             None => vec![WorkspaceDefinition {
                 name: String::from("default"),
-                has_any_file: vec![".git".to_string(), ".twm.yaml".to_string()],
+                conditions: vec![Box::new(HasAnyFileCondition {
+                    files: vec![".git".to_string()],
+                })],
                 default_layout: None,
             }],
         };
