@@ -16,13 +16,23 @@
         });
         naersk-lib = pkgs.callPackage naersk { };
 
-        twm = naersk-lib.buildPackage {
-          src = ./.;
-        };
-      in
+
+        buildTwm = args: naersk-lib.buildPackage {
+            src = ./.;
+        } // args;
+
+        twm = buildTwm {};
+
+        twm-dev = buildTwm { release = false; };
+
+        in
       {
         formatter = pkgs.nixpkgs-fmt;
-        defaultPackage = twm;
+        packages = {
+            default = twm;
+            twm = twm;
+            twm-dev = twm-dev;
+        };
 
         devShell = with pkgs; mkShell {
           buildInputs = [
