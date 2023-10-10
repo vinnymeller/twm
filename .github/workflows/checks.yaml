@@ -23,4 +23,4 @@ jobs:
             cargo clippy -- -D clippy::all
 
       - name: Build
-        run: nix build .#  # runs tests during build
+        run: nix build .#twm-dev
