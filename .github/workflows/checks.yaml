@@ -22,5 +22,5 @@ jobs:
           nix develop --command \
             cargo clippy -- -D clippy::all
 
-      - name: Build
+      - name: Build & test  # nix build will run tests as configured
         run: nix build .#twm-dev
