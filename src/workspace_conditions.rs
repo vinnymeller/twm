@@ -34,6 +34,36 @@ impl WorkspaceCondition for HasAllFilesCondition {
     }
 }
 
+pub struct MissingAnyFileCondition {
+    pub files: Vec<String>,
+}
+
+impl WorkspaceCondition for MissingAnyFileCondition {
+    fn meets_condition(&self, path: &Path) -> bool {
+        for file in &self.files {
+            if !path.join(file).exists() {
+                return true;
+            }
+        }
+        false
+    }
+}
+
+pub struct MissingAllFilesCondition {
+    pub files: Vec<String>,
+}
+
+impl WorkspaceCondition for MissingAllFilesCondition {
+    fn meets_condition(&self, path: &Path) -> bool {
+        for file in &self.files {
+            if path.join(file).exists() {
+                return false;
+            }
+        }
+        true
+    }
+}
+
 /// A condition that always returns true, used as a default condition if no others
 /// are specified.
 pub struct NullCondition {}

@@ -1,7 +1,10 @@
 // TODO: figure out how to handle turning the config file into the final structs used
 // throughout the program. this shit is a mess!!
 
-use crate::workspace_conditions::{HasAnyFileCondition, NullCondition, WorkspaceCondition};
+use crate::workspace_conditions::{
+    HasAnyFileCondition, MissingAllFilesCondition, MissingAnyFileCondition, NullCondition,
+    WorkspaceCondition,
+};
 use anyhow::{Context, Result};
 use indexmap::IndexMap;
 use serde::Deserialize;
@@ -15,6 +18,8 @@ struct WorkspaceDefinitionConfig {
     pub name: String,
     pub has_any_file: Option<Vec<String>>,
     pub has_all_files: Option<Vec<String>>,
+    pub missing_any_file: Option<Vec<String>>,
+    pub missing_all_files: Option<Vec<String>>,
     pub default_layout: Option<String>,
 }
 
@@ -42,6 +47,26 @@ impl From<WorkspaceDefinitionConfig> for WorkspaceDefinition {
             if !has_all_files.is_empty() {
                 let condition = HasAnyFileCondition {
                     files: has_all_files,
+                };
+                let condition = Box::new(condition);
+                conditions.push(condition);
+            }
+        }
+
+        if let Some(missing_any_file) = config.missing_any_file {
+            if !missing_any_file.is_empty() {
+                let condition = MissingAnyFileCondition {
+                    files: missing_any_file,
+                };
+                let condition = Box::new(condition);
+                conditions.push(condition);
+            }
+        }
+
+        if let Some(missing_all_files) = config.missing_all_files {
+            if !missing_all_files.is_empty() {
+                let condition = MissingAllFilesCondition {
+                    files: missing_all_files,
                 };
                 let condition = Box::new(condition);
                 conditions.push(condition);

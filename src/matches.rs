@@ -73,12 +73,7 @@ pub fn find_workspaces_in_dir<'a>(
                 workspace_type = Some(workspace_definition.name.as_str());
                 break;
             }
-            // for file_name in &workspace_definition.has_any_file {
-            //     if entry.path().join(file_name).exists() {
-            //         workspace_type = Some(workspace_definition.name.as_str());
-            //         break;
-            //     }
-            // }
+
             if workspace_type.is_some() {
                 break;
             }

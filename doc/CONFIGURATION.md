@@ -5,6 +5,25 @@ Your config file should be located at $XDG_CONFIG_HOME/twm/twm.yaml (default: ~/
 `twm` has sensible defaults if you don't want to deal with a config file just yet, but it will definitely not suffice for everybody's directory structure.
 
 
+## Configuration options
+
+- `search_paths`: a list of strings representing directories to search for workspaces in. Defaults to `~`. Shell expansion is supported.
+- `exclude_path_components`: a list of strings representing folders that will not be searched when searching for workspaces
+- `max_search_depth`: integer, how many directories deep to search your `search_paths` for workspaces
+- `session_name_path_components`: integer, how many directories deep to use by default when generating the name of your tmux session. e.g. if your workspace is `/home/vinny/dev/rust/twm` and `session_name_path_components` is 2, the tmux session will be named `rust/twm`. In the case of name conflicts (e.g. I also have a workspace in `/home/vinny/cache/rust/twm`), the new session would be called `cache/rust/twm`.
+- `workspace_definitions`: optional, a list of workspace definitions. if no workspaces are defined, git repositories and directories with a `.twm.yaml` config are considered a workspace by default. other than `name` and `default_layout`, the other properties all configure workspace match conditions. any number of conditions can be used in combination with each other, e.g. `has_all_files: [ ".git", "requirements.txt" ]` and `missing_all_files: [ "pyproject.toml", "Pipfile", "poetry.lock"]` can be used together. each workspace definition has the following properties:
+  - `name`: string, the name describing the workspace type. must be unique.
+  - `has_any_file`: optional list of strings, tells twm to only consider a directory to be a workspace of this type if at least one filename in this list is present
+  - `has_all_files`: optional list of strings, tells twm to only consider a directory to be a workspace of this type if all filenames in this list are present
+  - `missing_any_file`: optional list of strings, tells twm to only consider a directory to be a workspace of this type if at least one of the filenames in this list is missing
+  - `missing_all_files`: optional list of strings, tells twm to only consider a directory to be a workspace of this type if all the filenames in this list are missing
+  - `default_layout`: optional string, the name of the layout to open this workspace with if the user does not select a layout manually. must match a defined layout name
+- `layouts`: optional, a list of layout definitions. each layout definition has the following properties:
+  - `name`: string, the name of the layout. must be unique
+  - `inherits`: optional list of strings, the names of layouts to "inherit" from, i.e. run the commands listed in that layout before the `commands` defined in this layout. useful for setting up base layouts to be used in specific development environments. e.g. it might set up one big pane on the left, with two horizontally split panes off to the right, with nothing running inside them. then the `commands` of layouts that inherit from the base can start environment-specific processes.
+  - `commands`: list of strings, the commands to run to set up the layout. these are sent directly to tmux with `tmux send-keys`. generally one will use tmux commands to configure the panes and windows, and then open programs in specific places.
+
+
 ## Example `twm` config
 
 Here is an example configuration with all configuration options set:
@@ -108,6 +127,8 @@ layouts:                           # our list of layouts just have names and a l
 ### Example local config
 
 **Note:** `twm` will search up the directory tree for a `.twm.yaml` file. If it finds one, it will be used instead of the default for your workspace type. This is useful for worktrees, where you may not want to check in the layout to source control, but have the same layout apply to all branches. You can simply put `.twm.yaml` in the worktree root to achieve this.
+
+Local configuration files can also inherit from globally-defined layouts.
 
 ```yaml
 # ~/dev/random/project/dir/.twm.yaml
