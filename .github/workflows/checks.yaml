@@ -1,0 +1,26 @@
+name: Check, test, & build TWM
+
+on:
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  the-stuff:
+    name: Check, test, & build
+    runs-on: ubuntu-latest
+    steps:
+
+      - uses: actions/checkout@v3
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+
+      - name: Clippy check
+        run: |
+          nix develop --command \
+            cargo clippy -- -D clippy::all
+
+      - name: Build
+        run: nix build .#  # runs tests during build
