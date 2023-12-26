@@ -3,7 +3,7 @@ use crate::config::{TwmGlobal, TwmLocal};
 use crate::matches::SafePath;
 use crate::picker::get_skim_selection_from_slice;
 use anyhow::{bail, Context, Result};
-use libc::execvp;
+use libc::{execvp,c_char};
 use std::ffi::CString;
 use std::path::Path;
 use std::process::{Command, Output};
@@ -101,9 +101,9 @@ fn attach_to_tmux_session_outside_tmux(repo_name: &str) -> Result<()> {
         CString::new(repo_name).with_context(|| "Unable to turn repo name to a cstring.")?,
     ];
 
-    let tmux_attach_args_ptrs: Vec<*const i8> = tmux_attach_args
+    let tmux_attach_args_ptrs: Vec<*const c_char> = tmux_attach_args
         .iter()
-        .map(|arg| arg.as_ptr())
+        .map(|arg| arg.as_ptr() as *const c_char)
         .chain(std::iter::once(std::ptr::null()))
         .collect();
 
