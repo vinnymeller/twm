@@ -3,8 +3,7 @@ use crate::config::{TwmGlobal, TwmLocal};
 use crate::matches::SafePath;
 use crate::picker::get_skim_selection_from_slice;
 use anyhow::{bail, Context, Result};
-use libc::{execvp,c_char};
-use std::ffi::CString;
+use std::os::unix::process::CommandExt;
 use std::path::Path;
 use std::process::{Command, Output};
 
@@ -35,7 +34,6 @@ impl From<&str> for SessionName {
         SessionName { name }
     }
 }
-
 fn run_tmux_command(args: &[&str]) -> Result<Output> {
     let output = Command::new("tmux")
         .args(args)
@@ -92,25 +90,16 @@ fn attach_to_tmux_session(session_name: &str) -> Result<()> {
     }
 }
 
-fn attach_to_tmux_session_outside_tmux(repo_name: &str) -> Result<()> {
-    let tmux_attach = CString::new("tmux").unwrap();
-    let tmux_attach_args = vec![
-        CString::new("tmux").unwrap(),
-        CString::new("attach").unwrap(),
-        CString::new("-t").unwrap(),
-        CString::new(repo_name).with_context(|| "Unable to turn repo name to a cstring.")?,
-    ];
-
-    let tmux_attach_args_ptrs: Vec<*const c_char> = tmux_attach_args
-        .iter()
-        .map(|arg| arg.as_ptr() as *const c_char)
-        .chain(std::iter::once(std::ptr::null()))
-        .collect();
-
-    unsafe {
-        execvp(tmux_attach.as_ptr(), tmux_attach_args_ptrs.as_ptr());
-    }
-    Err(anyhow::anyhow!("Unable to attach to tmux session!"))
+fn attach_to_tmux_session_outside_tmux(session_name: &str) -> Result<()> {
+    let shell = std::env::var("SHELL").unwrap_or("sh".to_string());
+    let exec_error = Command::new(shell)
+        .args(["-c", format!("tmux attach -t {}", session_name).as_str()])
+        .exec();
+    anyhow::bail!(
+        "Failed to attach to tmux session with name {repo_name} outside tmux: {exec_error}",
+        repo_name = session_name,
+        exec_error = exec_error
+    );
 }
 
 fn tmux_has_session(session_name: &SessionName) -> bool {
