@@ -107,5 +107,4 @@ bind-key -r e run-shell "tmux switch -t $TWM_DEFAULT"  # i set TWM_DEFAULT in my
 Contributions are more than welcome! If there are workflows you think would be useful to add, or if you find a bug, please open an issue or PR. For style and linting, I simply use `cargo fmt` and `clippy::all`.
 
 ## License
-
-GPL v2.0
+[MIT](./LICENSE)
