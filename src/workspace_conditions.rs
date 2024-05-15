@@ -1,5 +1,16 @@
 use std::path::Path;
+use enum_dispatch::enum_dispatch;
 
+#[enum_dispatch]
+pub enum WorkspaceConditionEnum {
+    HasAnyFileCondition,
+    HasAllFilesCondition,
+    MissingAnyFileCondition,
+    MissingAllFilesCondition,
+    NullCondition,
+}
+
+#[enum_dispatch(WorkspaceConditionEnum)]
 pub trait WorkspaceCondition {
     fn meets_condition(&self, path: &Path) -> bool;
 }

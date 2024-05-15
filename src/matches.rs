@@ -1,6 +1,7 @@
 use crate::config::TwmGlobal;
 use anyhow::Result;
 use std::{collections::HashMap, path::Path};
+use crate::workspace_conditions::WorkspaceCondition;
 
 use walkdir::{DirEntry, WalkDir};
 

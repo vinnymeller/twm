@@ -3,7 +3,7 @@
 
 use crate::workspace_conditions::{
     HasAnyFileCondition, MissingAllFilesCondition, MissingAnyFileCondition, NullCondition,
-    WorkspaceCondition,
+    WorkspaceConditionEnum,
 };
 use anyhow::{Context, Result};
 use indexmap::IndexMap;
@@ -25,21 +25,20 @@ struct WorkspaceDefinitionConfig {
 
 pub struct WorkspaceDefinition {
     pub name: String,
-    pub conditions: Vec<Box<dyn WorkspaceCondition>>,
+    pub conditions: Vec<WorkspaceConditionEnum>,
     pub default_layout: Option<String>,
 }
 
 impl From<WorkspaceDefinitionConfig> for WorkspaceDefinition {
     fn from(config: WorkspaceDefinitionConfig) -> Self {
-        let mut conditions = Vec::<Box<dyn WorkspaceCondition>>::new();
+        let mut conditions = Vec::<WorkspaceConditionEnum>::new();
 
         if let Some(has_any_file) = config.has_any_file {
             if !has_any_file.is_empty() {
                 let condition = HasAnyFileCondition {
                     files: has_any_file,
                 };
-                let condition = Box::new(condition);
-                conditions.push(condition);
+                conditions.push(condition.into());
             }
         }
 
@@ -48,8 +47,7 @@ impl From<WorkspaceDefinitionConfig> for WorkspaceDefinition {
                 let condition = HasAnyFileCondition {
                     files: has_all_files,
                 };
-                let condition = Box::new(condition);
-                conditions.push(condition);
+                conditions.push(condition.into());
             }
         }
 
@@ -58,8 +56,7 @@ impl From<WorkspaceDefinitionConfig> for WorkspaceDefinition {
                 let condition = MissingAnyFileCondition {
                     files: missing_any_file,
                 };
-                let condition = Box::new(condition);
-                conditions.push(condition);
+                conditions.push(condition.into());
             }
         }
 
@@ -68,14 +65,13 @@ impl From<WorkspaceDefinitionConfig> for WorkspaceDefinition {
                 let condition = MissingAllFilesCondition {
                     files: missing_all_files,
                 };
-                let condition = Box::new(condition);
-                conditions.push(condition);
+                conditions.push(condition.into());
             }
         }
 
         if conditions.is_empty() {
-            let condition = Box::new(NullCondition {});
-            conditions.push(condition);
+            let condition = NullCondition {};
+            conditions.push(condition.into());
         }
 
         WorkspaceDefinition {
@@ -188,9 +184,10 @@ impl TryFrom<RawTwmGlobal> for TwmGlobal {
                 .collect(),
             None => vec![WorkspaceDefinition {
                 name: String::from("default"),
-                conditions: vec![Box::new(HasAnyFileCondition {
+                conditions: vec![HasAnyFileCondition {
                     files: vec![".git".to_string()],
-                })],
+                }
+                .into()],
                 default_layout: None,
             }],
         };
