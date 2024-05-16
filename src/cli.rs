@@ -6,7 +6,9 @@ use anyhow::Result;
 
 use crate::config::TwmGlobal;
 use crate::matches::{find_workspaces_in_dir, SafePath};
-use crate::tmux::{get_tmux_sessions, open_workspace, open_workspace_in_group};
+use crate::tmux::{
+    attach_to_tmux_session, get_tmux_sessions, open_workspace, open_workspace_in_group,
+};
 use clap::Parser;
 
 #[derive(Parser, Default, Debug)]
@@ -20,6 +22,12 @@ pub struct Arguments {
     ///
     /// Using this option will override any other layout definitions.
     pub layout: bool,
+
+    #[clap(short, long)]
+    /// Prompt user to select an existing tmux session to attach to.
+    ///
+    /// This nullifies all other options.
+    pub existing: bool,
 
     #[clap(short, long)]
     /// Prompt user to start a new session in the same group as an existing session.
@@ -48,7 +56,18 @@ pub struct Arguments {
 pub fn parse() -> Result<()> {
     let args = Arguments::parse();
 
-    if args.group {
+    if args.existing {
+        let existing_sessions = get_tmux_sessions()?;
+        let session_name = get_skim_selection_from_slice(
+            &existing_sessions
+                .iter()
+                .map(|s| s.as_str())
+                .collect::<Vec<&str>>(), // TODO: not ideal...
+            "Select a session to attach to: ",
+        )?;
+        attach_to_tmux_session(&session_name)?;
+        Ok(())
+    } else if args.group {
         let existing_sessions = get_tmux_sessions()?;
         let group_session_name = get_skim_selection_from_slice(
             &existing_sessions
