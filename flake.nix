@@ -12,7 +12,7 @@
         overlays = [ (import rust-overlay) ];
         pkgs = import nixpkgs { inherit system overlays; };
         rustVersion = pkgs.rust-bin.selectLatestNightlyWith (toolchain: toolchain.default.override {
-          extensions = [ "rust-src" "rust-analyzer" "cargo" ];
+          extensions = [ "rust-src" "rust-analyzer" "cargo" "rustc" ];
         });
         naersk-lib = pkgs.callPackage naersk { };
 
@@ -35,11 +35,12 @@
         };
 
         devShell = with pkgs; mkShell {
-          buildInputs = [
+          buildInputs = with pkgs; [
             rustVersion
+            pkg-config
           ];
           RUST_SRC_PATH = rustPlatform.rustLibSrc;
-          PKG_CONFIG_PATH = "${pkgs.openssl.dev}/lib/pkgconfig";
+          PKG_CONFIG_PATH = lib.makeBinPath [ pkg-config ];
         };
       });
 }

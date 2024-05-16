@@ -49,10 +49,19 @@ fn run_tmux_command(args: &[&str]) -> Result<Output> {
     Ok(output)
 }
 
+pub fn get_tmux_sessions() -> Result<Vec<String>> {
+    let output = run_tmux_command(&["list-sessions", "-F", "#{session_name}"])?;
+    let out_str = String::from_utf8_lossy(&output.stdout);
+    let sessions: Vec<String> = out_str.lines().map(|s| s.to_string()).collect();
+    Ok(sessions)
+}
+
 fn create_tmux_session(name: &SessionName, workspace_type: Option<&str>, path: &str) -> Result<()> {
     run_tmux_command(&[
         "new-session",
         "-ds",
+        &name.name,
+        "-t",
         &name.name,
         "-c",
         path,
@@ -72,6 +81,18 @@ fn create_tmux_session(name: &SessionName, workspace_type: Option<&str>, path: &
             &name.name
         )
     })?;
+    Ok(())
+}
+
+fn create_tmux_session_in_group(group_session_name: &str, name: &SessionName) -> Result<()> {
+    run_tmux_command(&["new-session", "-ds", &name.name, "-t", group_session_name]).with_context(
+        || {
+            format!(
+                "Failed to create tmux session {} in group {}",
+                &name.name, group_session_name
+            )
+        },
+    )?;
     Ok(())
 }
 
@@ -218,10 +239,22 @@ fn get_session_name_recursive(path: &SafePath, path_components: usize) -> Result
         // if we fail to get the TWM_ROOT variable, either the session is not a TWM session or is broken (e.g. TWM_ROOT is not set)
         // either way we still need to recurse for a new name
         Err(_) => {
-            let new_name = get_session_name_recursive(path, path_components + 1)?;
+            let new_name = get_session_name_recursive(path, path_components + 2)?;
             Ok(new_name)
         }
     }
+}
+
+fn get_group_session_name(group_session_name: &str) -> Result<SessionName> {
+    let mut name_iter = 1;
+    let mut temp_name = format!("{}-{}", group_session_name, name_iter);
+    let mut name = SessionName::from(temp_name.as_str());
+    while tmux_has_session(&name) {
+        name_iter += 1;
+        temp_name = format!("{}-{}", group_session_name, name_iter);
+        name = SessionName::from(temp_name.as_str());
+    }
+    Ok(name)
 }
 
 pub fn open_workspace(
@@ -245,5 +278,18 @@ pub fn open_workspace(
     if !args.dont_attach {
         attach_to_tmux_session(&tmux_name.name)?;
     }
+    Ok(())
+}
+
+pub fn open_workspace_in_group(group_session_name: &str, args: &Arguments) -> Result<()> {
+    let tmux_name = match &args.name {
+        Some(name) => SessionName::from(name.as_str()),
+        None => get_group_session_name(group_session_name)?,
+    };
+    create_tmux_session_in_group(group_session_name, &tmux_name)?;
+    if !args.dont_attach {
+        attach_to_tmux_session(&tmux_name.name)?;
+    }
+
     Ok(())
 }
