@@ -17,6 +17,7 @@ I felt like something for *my* workflow was missing from each of these, hence th
 
 - Fuzzy find workspaces to open in tmux
 - Is able to open workspaces in tmux even if not run from within a tmux session
+- Fuzzy find existing sessions and attach or add a new session in the same session group (useful for multi-monitor workflows)
 - Highly configurable
 - Define different default behaviors for different workspace types
 - Sets useful environment variables (prefixed with `TWM_`) within your sessions to simplify extending `twm`'s functionality with other scripts
@@ -47,6 +48,16 @@ Options:
           Prompt user to select a globally-defined layout to open the workspace with.
 
           Using this option will override any other layout definitions.
+
+  -e, --existing
+          Prompt user to select an existing tmux session to attach to.
+
+          This nullifies all other options.
+
+  -g, --group
+          Prompt user to start a new session in the same group as an existing session.
+
+          Setting this option nullifies the layout and path options.
 
   -p, --path <PATH>
           Open the given path as a workspace.
