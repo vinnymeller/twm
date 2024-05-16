@@ -103,7 +103,7 @@ fn attach_to_tmux_session_inside_tmux(session_name: &str) -> Result<()> {
     Ok(())
 }
 
-fn attach_to_tmux_session(session_name: &str) -> Result<()> {
+pub fn attach_to_tmux_session(session_name: &str) -> Result<()> {
     if std::env::var("TMUX").is_ok() {
         attach_to_tmux_session_inside_tmux(session_name)
     } else {
