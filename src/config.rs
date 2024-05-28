@@ -2,7 +2,7 @@
 // throughout the program. this shit is a mess!!
 
 use crate::layout::LayoutDefinition;
-use crate::workspace_conditions::{
+use crate::workspace::{
     HasAnyFileCondition, MissingAllFilesCondition, MissingAnyFileCondition, NullCondition,
     WorkspaceConditionEnum, WorkspaceDefinition,
 };

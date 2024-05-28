@@ -1,5 +1,5 @@
 use crate::config::TwmGlobal;
-use crate::workspace_conditions::path_meets_workspace_conditions;
+use crate::workspace::path_meets_workspace_conditions;
 
 use walkdir::{DirEntry, WalkDir};
 

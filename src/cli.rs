@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use crate::picker::get_skim_selection_from_slice;
-use crate::workspace_conditions::get_workspace_type_for_path;
+use crate::workspace::get_workspace_type_for_path;
 use anyhow::Result;
 
 use crate::config::TwmGlobal;
