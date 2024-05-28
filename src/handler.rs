@@ -31,7 +31,7 @@ pub fn handle_workspace_selection(args: &Arguments) -> Result<()> {
     let config = TwmGlobal::load()?;
     let mut matched_workspace_paths = Vec::<String>::new();
     // handle a path directly being passed in first
-    let workspace_path = if let Some(path) = args.path.clone() {
+    let workspace_path = if let Some(path) = &args.path {
         let path_full = std::fs::canonicalize(path)?;
         match path_full.to_str() {
             Some(p) => p.to_owned(),
