@@ -5,7 +5,7 @@ use crate::workspace_conditions::get_workspace_type_for_path;
 use anyhow::Result;
 
 use crate::config::TwmGlobal;
-use crate::matches::{find_workspaces_in_dir, SafePath};
+use crate::matches::find_workspaces_in_dir;
 use crate::tmux::{
     attach_to_tmux_session, get_tmux_sessions, open_workspace, open_workspace_in_group,
 };
@@ -74,31 +74,19 @@ pub fn parse() -> Result<()> {
         // handle a path directly being passed in first
         let workspace_path = if let Some(path) = args.path.clone() {
             let path_full = std::fs::canonicalize(path)?;
-            match SafePath::try_from(path_full.as_path()) {
-                Ok(p) => p,
-                Err(_) => anyhow::bail!("Path is not valid UTF-8"),
+            match path_full.to_str() {
+                Some(p) => p.to_owned(),
+                None => anyhow::bail!("Path is not valid UTF-8"),
             }
         } else {
             for dir in &config.search_paths {
-                match SafePath::try_from(Path::new(dir)) {
-                    Ok(_) => {
-                        find_workspaces_in_dir(dir.as_str(), &config, &mut matched_workspace_paths)
-                    }
-                    Err(_) => {
-                        anyhow::bail!("Path is not valid UTF-8: {}", dir);
-                    }
-                }
+                find_workspaces_in_dir(dir.as_str(), &config, &mut matched_workspace_paths)
             }
-            let workspace_name =
-                get_skim_selection_from_slice(&matched_workspace_paths, "Select a workspace: ")?;
-            SafePath::try_from(Path::new(workspace_name.as_str()))?
+            get_skim_selection_from_slice(&matched_workspace_paths, "Select a workspace: ")?
         };
 
-        //let workspace_type = matched_workspaces.get(&workspace_path).copied();
-        let workspace_type = get_workspace_type_for_path(
-            Path::new(&workspace_path.path),
-            &config.workspace_definitions,
-        );
+        let workspace_type =
+            get_workspace_type_for_path(Path::new(&workspace_path), &config.workspace_definitions);
         open_workspace(&workspace_path, workspace_type, &config, &args)?;
 
         Ok(())

@@ -1,7 +1,6 @@
 use crate::cli::Arguments;
 use crate::config::{TwmGlobal, TwmLocal};
 use crate::layout::{get_commands_from_layout, get_commands_from_layout_name, get_layout_names};
-use crate::matches::SafePath;
 use crate::picker::get_skim_selection_from_slice;
 use anyhow::{bail, Context, Result};
 use std::os::unix::process::CommandExt;
@@ -13,8 +12,8 @@ pub struct SessionName {
 }
 
 impl SessionName {
-    pub fn new(path: &SafePath, path_components: usize) -> Self {
-        let mut path_parts: Vec<&str> = path.path.split('/').rev().take(path_components).collect();
+    pub fn new(path: &str, path_components: usize) -> Self {
+        let mut path_parts: Vec<&str> = path.split('/').rev().take(path_components).collect();
         path_parts.reverse();
         let raw_name = path_parts.join("/");
         Self::from(raw_name.as_str())
@@ -220,7 +219,7 @@ fn find_config_file(workspace_path: &Path) -> Result<Option<TwmLocal>> {
     }
 }
 
-fn get_session_name_recursive(path: &SafePath, path_components: usize) -> Result<SessionName> {
+fn get_session_name_recursive(path: &str, path_components: usize) -> Result<SessionName> {
     let name = SessionName::new(path, path_components);
     // no session means we can use this name
     if !tmux_has_session(&name) {
@@ -234,7 +233,7 @@ fn get_session_name_recursive(path: &SafePath, path_components: usize) -> Result
         // if we successfully get the TWM_ROOT variable, we are in a TWM session. if TWM_ROOT matches the path we're currently trying
         // to open, we can use this name and will simply attach to the existing session
         Ok(twm_root) => {
-            if twm_root == path.path {
+            if twm_root == path {
                 Ok(name)
             } else {
                 // if TWM_ROOT doesn't match, we've had a name collision and need to recurse and try a new name with more path components
@@ -264,7 +263,7 @@ fn get_group_session_name(group_session_name: &str) -> Result<SessionName> {
 }
 
 pub fn open_workspace(
-    workspace_path: &SafePath,
+    workspace_path: &str,
     workspace_type: Option<&str>,
     config: &TwmGlobal,
     args: &Arguments,
@@ -274,8 +273,8 @@ pub fn open_workspace(
         None => get_session_name_recursive(workspace_path, config.session_name_path_components)?,
     };
     if !tmux_has_session(&tmux_name) {
-        create_tmux_session(&tmux_name, workspace_type, workspace_path.path.as_str())?;
-        let local_config = find_config_file(Path::new(workspace_path.path.as_str()))?;
+        create_tmux_session(&tmux_name, workspace_type, workspace_path)?;
+        let local_config = find_config_file(Path::new(workspace_path))?;
         let cli_layout = if args.layout {
             Some(get_layout_selection(config)?)
         } else {
