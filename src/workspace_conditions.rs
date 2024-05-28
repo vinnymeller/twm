@@ -1,5 +1,11 @@
-use std::path::Path;
 use enum_dispatch::enum_dispatch;
+use std::path::Path;
+
+pub struct WorkspaceDefinition {
+    pub name: String,
+    pub conditions: Vec<WorkspaceConditionEnum>,
+    pub default_layout: Option<String>,
+}
 
 #[enum_dispatch]
 pub enum WorkspaceConditionEnum {
@@ -83,4 +89,22 @@ impl WorkspaceCondition for NullCondition {
     fn meets_condition(&self, _path: &Path) -> bool {
         true
     }
+}
+
+#[inline(always)]
+pub fn path_meets_workspace_conditions(path: &Path, conditions: &[WorkspaceConditionEnum]) -> bool {
+    conditions.iter().all(|c| c.meets_condition(path))
+}
+
+#[inline(always)]
+pub fn get_workspace_type_for_path<'a>(
+    path: &Path,
+    workspace_definitions: &'a [WorkspaceDefinition],
+) -> Option<&'a str> {
+    for workspace_definition in workspace_definitions {
+        if path_meets_workspace_conditions(path, &workspace_definition.conditions) {
+            return Some(&workspace_definition.name);
+        }
+    }
+    None
 }

@@ -1,14 +1,13 @@
 // TODO: figure out how to handle turning the config file into the final structs used
 // throughout the program. this shit is a mess!!
 
+use crate::layout::LayoutDefinition;
 use crate::workspace_conditions::{
     HasAnyFileCondition, MissingAllFilesCondition, MissingAnyFileCondition, NullCondition,
-    WorkspaceConditionEnum,
+    WorkspaceConditionEnum, WorkspaceDefinition,
 };
 use anyhow::{Context, Result};
-use indexmap::IndexMap;
 use serde::Deserialize;
-use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
@@ -20,12 +19,6 @@ struct WorkspaceDefinitionConfig {
     pub has_all_files: Option<Vec<String>>,
     pub missing_any_file: Option<Vec<String>>,
     pub missing_all_files: Option<Vec<String>>,
-    pub default_layout: Option<String>,
-}
-
-pub struct WorkspaceDefinition {
-    pub name: String,
-    pub conditions: Vec<WorkspaceConditionEnum>,
     pub default_layout: Option<String>,
 }
 
@@ -83,60 +76,6 @@ impl From<WorkspaceDefinitionConfig> for WorkspaceDefinition {
 }
 
 #[derive(Deserialize, Debug)]
-pub struct LayoutDefinition {
-    pub name: String,
-    pub inherits: Option<Vec<String>>,
-    pub commands: Option<Vec<String>>,
-}
-
-pub struct LayoutContainer {
-    layouts: HashMap<String, LayoutDefinition>,
-}
-
-impl LayoutContainer {
-    pub fn add(&mut self, layout: LayoutDefinition) {
-        self.layouts.insert(layout.name.clone(), layout);
-    }
-
-    pub fn get(&self, name: &str) -> &LayoutDefinition {
-        match self.layouts.get(name) {
-            Some(layout) => layout,
-            None => panic!("Layout {} does not exist! Check your configuration", name),
-        }
-    }
-
-    pub fn get_commands<'a: 'c, 'b: 'c, 'c>(
-        &'a self,
-        layout: &'b LayoutDefinition,
-    ) -> Vec<&'c str> {
-        let mut commands = Vec::<&'a str>::new();
-
-        if let Some(layout_inherits) = &layout.inherits {
-            for layout_name in layout_inherits {
-                commands.extend(self.get_commands(self.get(layout_name)));
-            }
-        }
-
-        if let Some(layout_commands) = &layout.commands {
-            commands.extend(layout_commands.iter().map(String::as_str));
-        }
-
-        commands
-    }
-
-    pub fn get_commands_from_name(&self, layout_name: &str) -> Vec<&str> {
-        self.get_commands(self.get(layout_name))
-    }
-
-    pub fn get_layout_names(&self) -> Vec<&str> {
-        self.layouts
-            .keys()
-            .map(std::convert::AsRef::as_ref)
-            .collect()
-    }
-}
-
-#[derive(Deserialize, Debug)]
 struct RawTwmGlobal {
     search_paths: Option<Vec<String>>,
     workspace_definitions: Option<Vec<WorkspaceDefinitionConfig>>,
@@ -149,9 +88,9 @@ struct RawTwmGlobal {
 pub struct TwmGlobal {
     pub search_paths: Vec<String>,
     pub exclude_path_components: Vec<String>,
-    pub workspace_definitions: IndexMap<String, WorkspaceDefinition>, // preserve order of insertion since order is implicitly the priority
+    pub workspace_definitions: Vec<WorkspaceDefinition>,
     pub session_name_path_components: usize,
-    pub layouts: LayoutContainer,
+    pub layouts: Vec<LayoutDefinition>,
     pub max_search_depth: usize,
 }
 
@@ -191,28 +130,11 @@ impl TryFrom<RawTwmGlobal> for TwmGlobal {
                 default_layout: None,
             }],
         };
-        let workspace_definitions: IndexMap<String, WorkspaceDefinition> = workspace_definitions
-            .into_iter()
-            .map(|workspace_definition| (workspace_definition.name.clone(), workspace_definition))
-            .collect();
 
         let layouts = raw_config.layouts.unwrap_or_default();
-        let layouts: HashMap<String, LayoutDefinition> = layouts
-            .into_iter()
-            .map(|layout| (layout.name.clone(), layout))
-            .collect();
-        let layouts = LayoutContainer { layouts };
 
         let max_search_depth = raw_config.max_search_depth.unwrap_or(3);
         let session_name_path_components = raw_config.session_name_path_components.unwrap_or(1);
-
-        // originally i didnt want to do this here but it takes essentially no time
-        // and makes the experience using it better imo
-        for workspace_definition in workspace_definitions.values() {
-            if let Some(layout_name) = &workspace_definition.default_layout {
-                layouts.get(layout_name);
-            }
-        }
 
         let config = TwmGlobal {
             search_paths,

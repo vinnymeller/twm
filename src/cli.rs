@@ -1,7 +1,7 @@
-use std::collections::HashMap;
 use std::path::Path;
 
 use crate::picker::get_skim_selection_from_slice;
+use crate::workspace_conditions::get_workspace_type_for_path;
 use anyhow::Result;
 
 use crate::config::TwmGlobal;
@@ -58,29 +58,19 @@ pub fn parse() -> Result<()> {
 
     if args.existing {
         let existing_sessions = get_tmux_sessions()?;
-        let session_name = get_skim_selection_from_slice(
-            &existing_sessions
-                .iter()
-                .map(|s| s.as_str())
-                .collect::<Vec<&str>>(), // TODO: not ideal...
-            "Select a session to attach to: ",
-        )?;
+        let session_name =
+            get_skim_selection_from_slice(&existing_sessions, "Select a session to attach to: ")?;
         attach_to_tmux_session(&session_name)?;
         Ok(())
     } else if args.group {
         let existing_sessions = get_tmux_sessions()?;
-        let group_session_name = get_skim_selection_from_slice(
-            &existing_sessions
-                .iter()
-                .map(|s| s.as_str())
-                .collect::<Vec<&str>>(), // TODO: not ideal...
-            "Select a session to group with: ",
-        )?;
+        let group_session_name =
+            get_skim_selection_from_slice(&existing_sessions, "Select a session to group with: ")?;
         open_workspace_in_group(&group_session_name, &args)?;
         Ok(())
     } else {
         let config = TwmGlobal::load()?;
-        let mut matched_workspaces = HashMap::<SafePath, &str>::new();
+        let mut matched_workspace_paths = Vec::<String>::new();
         // handle a path directly being passed in first
         let workspace_path = if let Some(path) = args.path.clone() {
             let path_full = std::fs::canonicalize(path)?;
@@ -91,23 +81,24 @@ pub fn parse() -> Result<()> {
         } else {
             for dir in &config.search_paths {
                 match SafePath::try_from(Path::new(dir)) {
-                    Ok(_) => find_workspaces_in_dir(dir.as_str(), &config, &mut matched_workspaces),
+                    Ok(_) => {
+                        find_workspaces_in_dir(dir.as_str(), &config, &mut matched_workspace_paths)
+                    }
                     Err(_) => {
                         anyhow::bail!("Path is not valid UTF-8: {}", dir);
                     }
                 }
             }
-            let workspace_name = get_skim_selection_from_slice(
-                &matched_workspaces
-                    .keys()
-                    .map(|k| k.path.as_str())
-                    .collect::<Vec<&str>>(),
-                "Select a workspace: ",
-            )?;
+            let workspace_name =
+                get_skim_selection_from_slice(&matched_workspace_paths, "Select a workspace: ")?;
             SafePath::try_from(Path::new(workspace_name.as_str()))?
         };
 
-        let workspace_type = matched_workspaces.get(&workspace_path).copied();
+        //let workspace_type = matched_workspaces.get(&workspace_path).copied();
+        let workspace_type = get_workspace_type_for_path(
+            Path::new(&workspace_path.path),
+            &config.workspace_definitions,
+        );
         open_workspace(&workspace_path, workspace_type, &config, &args)?;
 
         Ok(())

@@ -1,7 +1,7 @@
 use crate::config::TwmGlobal;
+use crate::workspace_conditions::path_meets_workspace_conditions;
 use anyhow::Result;
-use std::{collections::HashMap, path::Path};
-use crate::workspace_conditions::WorkspaceCondition;
+use std::path::Path;
 
 use walkdir::{DirEntry, WalkDir};
 
@@ -32,11 +32,7 @@ impl SafePath {
     }
 }
 
-pub fn find_workspaces_in_dir<'a>(
-    dir: &str,
-    config: &'a TwmGlobal,
-    workspaces: &mut HashMap<SafePath, &'a str>,
-) {
+pub fn find_workspaces_in_dir(dir: &str, config: &TwmGlobal, workspaces: &mut Vec<String>) {
     let is_excluded = |entry: &DirEntry| -> bool {
         match entry
             .path()
@@ -63,24 +59,11 @@ pub fn find_workspaces_in_dir<'a>(
             Err(_) => continue,
         };
 
-        let mut workspace_type: Option<&'a str> = None;
-
-        for (_, workspace_definition) in &config.workspace_definitions {
-            if workspace_definition
-                .conditions
-                .iter()
-                .all(|c| c.meets_condition(entry.path()))
-            {
-                workspace_type = Some(workspace_definition.name.as_str());
+        for workspace_definition in &config.workspace_definitions {
+            if path_meets_workspace_conditions(entry.path(), &workspace_definition.conditions) {
+                workspaces.push(path.path);
                 break;
             }
-
-            if workspace_type.is_some() {
-                break;
-            }
-        }
-        if let Some(workspace_type) = workspace_type {
-            workspaces.insert(path, workspace_type);
         }
     }
 }

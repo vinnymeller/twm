@@ -2,7 +2,7 @@ use std::io;
 
 use anyhow::{Context, Result};
 
-pub fn get_skim_selection_from_slice(items: &[&str], prompt: &str) -> Result<String> {
+pub fn get_skim_selection_from_slice(items: &[String], prompt: &str) -> Result<String> {
     let opts = skim::prelude::SkimOptionsBuilder::default()
         .prompt(Some(prompt))
         .color(Some("blue"))
