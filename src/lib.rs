@@ -5,3 +5,4 @@ pub mod matches;
 pub mod picker;
 pub mod tmux;
 pub mod workspace;
+pub mod handler;
