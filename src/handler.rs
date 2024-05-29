@@ -39,7 +39,7 @@ pub fn handle_workspace_selection(args: &Arguments) -> Result<()> {
         }
     } else {
         for dir in &config.search_paths {
-            find_workspaces_in_dir(dir.as_str(), &config, &mut matched_workspace_paths)
+            find_workspaces_in_dir(dir, &config, &mut matched_workspace_paths)
         }
         get_skim_selection_from_slice(&matched_workspace_paths, "Select a workspace: ")?
     };
