@@ -1,12 +1,12 @@
 use crate::handler::{
     handle_existing_session_selection, handle_group_session_selection, handle_make_default_config,
     handle_print_bash_completions, handle_print_fish_completions, handle_print_layout_schema,
-    handle_print_schema, handle_print_zsh_completions, handle_workspace_selection,
+    handle_print_man, handle_print_schema, handle_print_zsh_completions,
+    handle_workspace_selection,
 };
 use anyhow::Result;
 
 use clap::Parser;
-use clap_complete::Shell;
 
 #[derive(Parser, Default, Debug)]
 #[clap(author = "Vinny Meller", version)]
@@ -36,13 +36,6 @@ pub struct Arguments {
     /// Using this option will override any other layout definitions.
     pub layout: bool,
 
-    #[clap(long)]
-    /// Make default configuration file.
-    ///
-    /// By default will attempt to write a default configuration file and configuration schema in `$XDG_CONFIG_HOME/twm/`
-    /// Using `-p/--path` with this flag will attempt to write the files to the folder specified.
-    pub make_default_config: bool,
-
     #[clap(short, long)]
     /// Open the given path as a workspace.
     ///
@@ -54,6 +47,13 @@ pub struct Arguments {
     ///
     /// twm will not store any knowledge of the fact that you manually named the workspace. I.e. if you open the workspace at path `/home/user/dev/api` and name it `jimbob`, and then open the same workspace again manually, you will have two instances of the workspace open with different names.
     pub name: Option<String>,
+
+    #[clap(long)]
+    /// Make default configuration file.
+    ///
+    /// By default will attempt to write a default configuration file and configuration schema in `$XDG_CONFIG_HOME/twm/`
+    /// Using `-p/--path` with this flag will attempt to write the files to the folder specified.
+    pub make_default_config: bool,
 
     #[clap(long)]
     /// Print the configuration file schema.
@@ -78,6 +78,10 @@ pub struct Arguments {
     #[clap(long)]
     /// Print fish completions
     pub print_fish_completions: bool,
+
+    #[clap(long)]
+    /// Print man page
+    pub print_man: bool,
 }
 
 /// Parses the command line arguments and runs the program. Called from `main.rs`.
@@ -109,6 +113,9 @@ pub fn parse() -> Result<()> {
             print_fish_completions: true,
             ..
         } => handle_print_fish_completions(),
+        Arguments {
+            print_man: true, ..
+        } => handle_print_man(),
         Arguments { group: true, .. } => handle_group_session_selection(&args),
         _ => handle_workspace_selection(&args),
     }

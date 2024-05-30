@@ -45,6 +45,13 @@ pub fn handle_print_layout_schema() -> Result<()> {
     Ok(())
 }
 
+pub fn handle_print_man() -> Result<()> {
+    let cmd = Arguments::command();
+    let man = clap_mangen::Man::new(cmd);
+    man.render(&mut std::io::stdout())?;
+    Ok(())
+}
+
 pub fn handle_make_default_config(args: &Arguments) -> Result<()> {
     let config_filename = format!("{}.yaml", crate_name!());
     let schema_filename = format!("{}.schema.json", crate_name!());
