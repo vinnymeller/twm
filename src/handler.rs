@@ -1,10 +1,11 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use anyhow::Result;
+use clap::crate_name;
 
 use crate::{
     cli::Arguments,
-    config::TwmGlobal,
+    config::{RawTwmGlobal, TwmGlobal, TwmLayout},
     matches::find_workspaces_in_dir,
     tmux::{
         attach_to_tmux_session, get_tmux_sessions, open_workspace, open_workspace_in_group,
@@ -14,6 +15,88 @@ use crate::{
 };
 
 use crate::ui::picker::{Picker, PickerSelection};
+
+pub fn handle_print_schema() -> Result<()> {
+    println!("{}", RawTwmGlobal::schema()?);
+    Ok(())
+}
+
+pub fn handle_print_layout_schema() -> Result<()> {
+    println!("{}", TwmLayout::schema()?);
+    Ok(())
+}
+
+pub fn handle_make_default_config(args: &Arguments) -> Result<()> {
+    let config_filename = format!("{}.yaml", crate_name!());
+    let schema_filename = format!("{}.schema.json", crate_name!());
+    let (config_path, schema_path) = if args.path.is_some() {
+        let mut path = PathBuf::from(args.path.as_ref().expect("Path was just checked?"));
+        if path.is_file() {
+            path.pop();
+        }
+        (path.join(&config_filename), path.join(&schema_filename))
+    } else {
+        let base_dirs = xdg::BaseDirectories::with_prefix(crate_name!())?;
+        (
+            base_dirs.get_config_file(&config_filename),
+            base_dirs.get_config_file(&schema_filename),
+        )
+    };
+
+    if config_path.exists() || schema_path.exists() {
+        anyhow::bail!(format!(
+            "Configuration files already exist. Please move or rename any existing files:
+- {}
+- {}
+before running this command again.",
+            config_path.display(),
+            schema_path.display()
+        ));
+    }
+
+    // make sure parent directories exist
+    if let Some(parent) = config_path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    // write the schema to the schema path
+    std::fs::write(schema_path, RawTwmGlobal::schema()?)?;
+    std::fs::write(
+        config_path,
+        format!(
+            r#"# yaml-language-server: $schema=./{}
+search_paths:
+  - "~"
+
+exclude_path_components:
+  - .git
+  - .direnv
+  - .cargo
+  - node_modules
+  - venv
+  - target
+  - __pycache__
+
+max_search_depth: 5
+session_name_path_components: 2
+
+workspace_definitions:
+  - name: default
+    has_any_file:
+      - .git
+      - .twm.yaml
+    default_layout: default
+
+layouts:
+  - name: default
+    commands:
+      - echo "twm session created in $TWM_ROOT"
+
+"#,
+            schema_filename
+        ),
+    )?;
+    Ok(())
+}
 
 pub fn handle_existing_session_selection() -> Result<()> {
     let existing_sessions = get_tmux_sessions()?;

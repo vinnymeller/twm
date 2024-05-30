@@ -1,5 +1,5 @@
 use crate::cli::Arguments;
-use crate::config::{TwmGlobal, TwmLocal};
+use crate::config::{TwmGlobal, TwmLayout};
 use crate::layout::{get_commands_from_layout, get_commands_from_layout_name, get_layout_names};
 use crate::ui::picker::{Picker, PickerSelection};
 use anyhow::{bail, Context, Result};
@@ -185,7 +185,7 @@ fn get_workspace_commands<'a>(
     twm_config: &'a TwmGlobal,
     cli_layout: Option<&'a str>,
 
-    local_config: Option<&'a TwmLocal>,
+    local_config: Option<&'a TwmLayout>,
 ) -> Result<Option<Vec<&'a str>>> {
     // if user wants to choose a layout do this first
     if let Some(cli_layout) = cli_layout {
@@ -223,8 +223,8 @@ fn get_workspace_commands<'a>(
     }
 }
 
-fn find_config_file(workspace_path: &Path) -> Result<Option<TwmLocal>> {
-    let local_config = TwmLocal::load(workspace_path)?;
+fn find_config_file(workspace_path: &Path) -> Result<Option<TwmLayout>> {
+    let local_config = TwmLayout::load(workspace_path)?;
     if let Some(local_config) = local_config {
         return Ok(Some(local_config));
     }
