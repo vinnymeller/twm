@@ -70,9 +70,11 @@ search_paths:
 exclude_path_components:
   - .git
   - .direnv
+  - .cargo
   - node_modules
   - venv
   - target
+  - __pycache__
 
 max_search_depth: 5
 session_name_path_components: 2

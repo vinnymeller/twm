@@ -193,10 +193,17 @@ impl FromStr for RawTwmGlobal {
 
 impl TwmGlobal {
     pub fn load() -> Result<Self> {
-        let xdg_dirs = xdg::BaseDirectories::with_prefix(clap::crate_name!())
-            .with_context(|| "Failed to load XDG dirs.")?;
         let config_file_name = format!("{}.yaml", clap::crate_name!());
-        let config_path = xdg_dirs.find_config_file(config_file_name);
+        let config_path = match std::env::var_os("TWM_CONFIG_FILE") {
+            // if TWM_CONFIG_FILE is not set, search xdg dirs for config file as normal
+            None => {
+                let xdg_dirs = xdg::BaseDirectories::with_prefix(clap::crate_name!())
+                    .with_context(|| "Failed to load XDG dirs.")?;
+                xdg_dirs.find_config_file(config_file_name)
+            }
+            // if TWM_CONFIG_FILE is set, read from there no questions asked
+            Some(config_file_path) => Some(PathBuf::from(config_file_path)),
+        };
         let raw_config = match config_path {
             Some(path) => RawTwmGlobal::try_from(&path),
             None => RawTwmGlobal::from_str(""),
