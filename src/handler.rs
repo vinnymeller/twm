@@ -4,7 +4,7 @@ use anyhow::Result;
 
 use crate::{
     cli::Arguments,
-    config::TwmGlobal,
+    config::{RawTwmGlobal, TwmGlobal, TwmLayout},
     matches::find_workspaces_in_dir,
     tmux::{
         attach_to_tmux_session, get_tmux_sessions, open_workspace, open_workspace_in_group,
@@ -14,6 +14,14 @@ use crate::{
 };
 
 use crate::ui::picker::{Picker, PickerSelection};
+
+pub fn handle_print_schema() -> Result<()> {
+    RawTwmGlobal::print_schema()
+}
+
+pub fn handle_print_layout_schema() -> Result<()> {
+    TwmLayout::print_schema()
+}
 
 pub fn handle_existing_session_selection() -> Result<()> {
     let existing_sessions = get_tmux_sessions()?;

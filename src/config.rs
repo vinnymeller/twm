@@ -7,12 +7,13 @@ use crate::workspace::{
     WorkspaceConditionEnum, WorkspaceDefinition,
 };
 use anyhow::{Context, Result};
+use schemars::{schema_for, JsonSchema};
 use serde::Deserialize;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, JsonSchema)]
 struct WorkspaceDefinitionConfig {
     pub name: String,
     pub has_any_file: Option<Vec<String>>,
@@ -75,14 +76,21 @@ impl From<WorkspaceDefinitionConfig> for WorkspaceDefinition {
     }
 }
 
-#[derive(Deserialize, Debug)]
-struct RawTwmGlobal {
+#[derive(Deserialize, Debug, JsonSchema)]
+pub struct RawTwmGlobal {
     search_paths: Option<Vec<String>>,
     workspace_definitions: Option<Vec<WorkspaceDefinitionConfig>>,
     max_search_depth: Option<usize>,
     session_name_path_components: Option<usize>,
     exclude_path_components: Option<Vec<String>>,
     layouts: Option<Vec<LayoutDefinition>>,
+}
+
+impl RawTwmGlobal {
+    pub fn print_schema() -> Result<()> {
+        println!("{}", serde_json::to_string_pretty(&schema_for!(Self))?);
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -95,9 +103,16 @@ pub struct TwmGlobal {
     pub max_search_depth: usize,
 }
 
-#[derive(Debug, Deserialize, Clone)]
-pub struct TwmLocal {
+#[derive(Debug, Deserialize, Clone, JsonSchema)]
+pub struct TwmLayout {
     pub layout: LayoutDefinition,
+}
+
+impl TwmLayout {
+    pub fn print_schema() -> Result<()> {
+        println!("{}", serde_json::to_string_pretty(&schema_for!(Self))?);
+        Ok(())
+    }
 }
 
 impl TryFrom<RawTwmGlobal> for TwmGlobal {
@@ -194,7 +209,7 @@ impl TwmGlobal {
     }
 }
 
-impl FromStr for TwmLocal {
+impl FromStr for TwmLayout {
     type Err = anyhow::Error;
 
     fn from_str(config: &str) -> Result<Self> {
@@ -212,7 +227,7 @@ impl FromStr for TwmLocal {
     }
 }
 
-impl TwmLocal {
+impl TwmLayout {
     /// Attemps to load a local config file from the given path.
     /// Will return Ok(None) if no config file is found.
     /// Errors if the config file is found but results in an error during parsing.
@@ -222,7 +237,7 @@ impl TwmLocal {
         if config_path.exists() {
             let config = fs::read_to_string(&config_path)
                 .with_context(|| format!("Failed to read config from path: {config_path:#?}"))?;
-            Ok(Some(TwmLocal::from_str(&config)?))
+            Ok(Some(TwmLayout::from_str(&config)?))
         } else {
             Ok(None)
         }
