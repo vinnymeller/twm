@@ -1,6 +1,6 @@
 use crate::handler::{
-    handle_existing_session_selection, handle_group_session_selection, handle_print_layout_schema,
-    handle_print_schema, handle_workspace_selection,
+    handle_existing_session_selection, handle_group_session_selection, handle_make_default_config,
+    handle_print_layout_schema, handle_print_schema, handle_workspace_selection,
 };
 use anyhow::Result;
 
@@ -50,13 +50,20 @@ pub struct Arguments {
     /// Print the configuration file schema.
     ///
     /// This can be used with tools (e.g. language servers) to provide autocompletion and validation when editing your configuration.
-    pub schema: bool,
+    pub print_schema: bool,
 
     #[clap(long)]
     /// Print the local layout configuration file schema.
     ///
     /// This can be used with tools (e.g. language servers) to provide autocompletion and validation when editing your configuration.
-    pub layout_schema: bool,
+    pub print_layout_schema: bool,
+
+    #[clap(long)]
+    /// Make default configuration file.
+    ///
+    /// By default will attempt to write a default configuration file and configuration schema in `$XDG_CONFIG_HOME/twm/`
+    /// Using `-p/--path` with this flag will attempt to write the files to the folder specified.
+    pub make_default_config: bool,
 }
 
 /// Parses the command line arguments and runs the program. Called from `main.rs`.
@@ -64,9 +71,15 @@ pub fn parse() -> Result<()> {
     let args = Arguments::parse();
 
     match args {
-        Arguments { schema: true, .. } => handle_print_schema(),
         Arguments {
-            layout_schema: true,
+            make_default_config: true,
+            ..
+        } => handle_make_default_config(&args),
+        Arguments {
+            print_schema: true, ..
+        } => handle_print_schema(),
+        Arguments {
+            print_layout_schema: true,
             ..
         } => handle_print_layout_schema(),
         Arguments { existing: true, .. } => handle_existing_session_selection(),

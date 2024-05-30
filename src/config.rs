@@ -87,9 +87,8 @@ pub struct RawTwmGlobal {
 }
 
 impl RawTwmGlobal {
-    pub fn print_schema() -> Result<()> {
-        println!("{}", serde_json::to_string_pretty(&schema_for!(Self))?);
-        Ok(())
+    pub fn schema() -> Result<String> {
+        Ok(serde_json::to_string_pretty(&schema_for!(Self))?)
     }
 }
 
@@ -109,9 +108,8 @@ pub struct TwmLayout {
 }
 
 impl TwmLayout {
-    pub fn print_schema() -> Result<()> {
-        println!("{}", serde_json::to_string_pretty(&schema_for!(Self))?);
-        Ok(())
+    pub fn schema() -> Result<String> {
+        Ok(serde_json::to_string_pretty(&schema_for!(Self))?)
     }
 }
 
