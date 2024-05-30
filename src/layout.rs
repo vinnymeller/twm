@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct LayoutDefinition {
     pub name: String,
     pub inherits: Option<Vec<String>>,

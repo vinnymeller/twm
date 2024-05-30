@@ -6,43 +6,82 @@ use crate::{
     cli::Arguments,
     config::TwmGlobal,
     matches::find_workspaces_in_dir,
-    picker::get_skim_selection_from_slice,
-    tmux::{attach_to_tmux_session, get_tmux_sessions, open_workspace, open_workspace_in_group},
+    tmux::{
+        attach_to_tmux_session, get_tmux_sessions, open_workspace, open_workspace_in_group,
+        session_name_for_path_recursive,
+    },
     workspace::get_workspace_type_for_path,
 };
 
+use crate::ui::picker::{Picker, PickerSelection};
+
 pub fn handle_existing_session_selection() -> Result<()> {
     let existing_sessions = get_tmux_sessions()?;
-    let session_name =
-        get_skim_selection_from_slice(&existing_sessions, "Select a session to attach to: ")?;
+    let session_name = match Picker::new(
+        &existing_sessions,
+        "Select an existing session to attach to: ".into(),
+    )
+    .get_selection()?
+    {
+        PickerSelection::None => anyhow::bail!("No session selected"),
+        PickerSelection::Selection(s) => s,
+        PickerSelection::ModifiedSelection(s) => s,
+    };
     attach_to_tmux_session(&session_name)?;
     Ok(())
 }
 
 pub fn handle_group_session_selection(args: &Arguments) -> Result<()> {
     let existing_sessions = get_tmux_sessions()?;
-    let group_session_name =
-        get_skim_selection_from_slice(&existing_sessions, "Select a session to group with: ")?;
+    let group_session_name = match Picker::new(
+        &existing_sessions,
+        "Select a session to group with: ".into(),
+    )
+    .get_selection()?
+    {
+        PickerSelection::None => anyhow::bail!("No session selected"),
+        PickerSelection::Selection(s) => s,
+        PickerSelection::ModifiedSelection(s) => s,
+    };
     open_workspace_in_group(&group_session_name, args)?;
     Ok(())
 }
 
 pub fn handle_workspace_selection(args: &Arguments) -> Result<()> {
     let config = TwmGlobal::load()?;
-    let mut matched_workspace_paths = Vec::<String>::new();
-    // handle a path directly being passed in first
-    let workspace_path = if let Some(path) = &args.path {
+    let (workspace_path, try_grouping) = if let Some(path) = &args.path {
         let path_full = std::fs::canonicalize(path)?;
         match path_full.to_str() {
-            Some(p) => p.to_owned(),
+            Some(p) => (p.to_owned(), false),
             None => anyhow::bail!("Path is not valid UTF-8"),
         }
     } else {
-        for dir in &config.search_paths {
-            find_workspaces_in_dir(dir, &config, &mut matched_workspace_paths)
+        let mut picker = Picker::new(&[], "Select a workspace: ".into());
+        let injector = picker.injector.clone();
+        let config = config.clone();
+        std::thread::spawn(move || {
+            for dir in &config.search_paths {
+                find_workspaces_in_dir(dir, &config, injector.clone())
+            }
+        });
+        match picker.get_selection()? {
+            PickerSelection::None => anyhow::bail!("No workspace selected"),
+            PickerSelection::Selection(s) => (s, false),
+            PickerSelection::ModifiedSelection(s) => (s, true),
         }
-        get_skim_selection_from_slice(&matched_workspace_paths, "Select a workspace: ")?
     };
+
+    if try_grouping {
+        // see if we already have a twm-generated session for the workspace path we're trying to open
+        if let Ok(Some(group_session_name)) =
+            session_name_for_path_recursive(&workspace_path, config.session_name_path_components)
+        {
+            open_workspace_in_group(group_session_name.as_str(), args)?;
+            return Ok(());
+        }
+    }
+
+    // if we couldn't find a correct session to group with, open the workspace normally
 
     let workspace_type =
         get_workspace_type_for_path(Path::new(&workspace_path), &config.workspace_definitions);
