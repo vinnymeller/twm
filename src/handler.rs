@@ -1,7 +1,8 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::Result;
-use clap::crate_name;
+use clap::{crate_name, CommandFactory};
+use clap_complete::{generate, Shell};
 
 use crate::{
     cli::Arguments,
@@ -15,6 +16,24 @@ use crate::{
 };
 
 use crate::ui::picker::{Picker, PickerSelection};
+
+fn print_completion(shell: Shell) -> Result<()> {
+    let mut cmd = Arguments::command();
+    generate(shell, &mut cmd, crate_name!(), &mut std::io::stdout());
+    Ok(())
+}
+
+pub fn handle_print_bash_completions() -> Result<()> {
+    print_completion(Shell::Bash)
+}
+
+pub fn handle_print_zsh_completions() -> Result<()> {
+    print_completion(Shell::Zsh)
+}
+
+pub fn handle_print_fish_completions() -> Result<()> {
+    print_completion(Shell::Fish)
+}
 
 pub fn handle_print_schema() -> Result<()> {
     println!("{}", RawTwmGlobal::schema()?);
