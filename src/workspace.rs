@@ -1,6 +1,7 @@
 use enum_dispatch::enum_dispatch;
 use std::path::Path;
 
+#[derive(Debug, Clone)]
 pub struct WorkspaceDefinition {
     pub name: String,
     pub conditions: Vec<WorkspaceConditionEnum>,
@@ -8,6 +9,7 @@ pub struct WorkspaceDefinition {
 }
 
 #[enum_dispatch]
+#[derive(Debug, Clone)]
 pub enum WorkspaceConditionEnum {
     HasAnyFileCondition,
     HasAllFilesCondition,
@@ -21,6 +23,7 @@ pub trait WorkspaceCondition {
     fn meets_condition(&self, path: &Path) -> bool;
 }
 
+#[derive(Debug, Clone)]
 pub struct HasAnyFileCondition {
     pub files: Vec<String>,
 }
@@ -36,6 +39,7 @@ impl WorkspaceCondition for HasAnyFileCondition {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct HasAllFilesCondition {
     pub files: Vec<String>,
 }
@@ -51,6 +55,7 @@ impl WorkspaceCondition for HasAllFilesCondition {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct MissingAnyFileCondition {
     pub files: Vec<String>,
 }
@@ -66,6 +71,7 @@ impl WorkspaceCondition for MissingAnyFileCondition {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct MissingAllFilesCondition {
     pub files: Vec<String>,
 }
@@ -83,6 +89,7 @@ impl WorkspaceCondition for MissingAllFilesCondition {
 
 /// A condition that always returns true, used as a default condition if no others
 /// are specified.
+#[derive(Debug, Clone)]
 pub struct NullCondition {}
 
 impl WorkspaceCondition for NullCondition {

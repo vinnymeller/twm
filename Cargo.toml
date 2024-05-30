@@ -19,7 +19,9 @@ serde = { version = "1", features = ["derive"] }
 libc = "0.2"
 indexmap = "1.9"
 shellexpand = "3"
-skim = "0.10"
 walkdir = "2"
 xdg = "2.4"
 enum_dispatch = "0.3.13"
+crossterm = { version = "0.27.0", features = ["event-stream"] }
+nucleo = "0.5.0"
+ratatui = "0.26.3"

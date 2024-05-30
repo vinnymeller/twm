@@ -85,6 +85,7 @@ struct RawTwmGlobal {
     layouts: Option<Vec<LayoutDefinition>>,
 }
 
+#[derive(Debug, Clone)]
 pub struct TwmGlobal {
     pub search_paths: Vec<String>,
     pub exclude_path_components: Vec<String>,
@@ -94,7 +95,7 @@ pub struct TwmGlobal {
     pub max_search_depth: usize,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct TwmLocal {
     pub layout: LayoutDefinition,
 }

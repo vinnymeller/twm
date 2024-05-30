@@ -1,7 +1,7 @@
 use crate::cli::Arguments;
 use crate::config::{TwmGlobal, TwmLocal};
 use crate::layout::{get_commands_from_layout, get_commands_from_layout_name, get_layout_names};
-use crate::picker::get_skim_selection_from_slice;
+use crate::ui::picker::{Picker, PickerSelection};
 use anyhow::{bail, Context, Result};
 use std::os::unix::process::CommandExt;
 use std::path::Path;
@@ -17,6 +17,10 @@ impl SessionName {
         path_parts.reverse();
         let raw_name = path_parts.join("/");
         Self::from(raw_name.as_str())
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.name
     }
 }
 
@@ -162,7 +166,18 @@ fn send_commands_to_session(session_name: &str, commands: &[&str]) -> Result<()>
 }
 
 fn get_layout_selection(twm_config: &TwmGlobal) -> Result<String> {
-    get_skim_selection_from_slice(&get_layout_names(&twm_config.layouts), "Select a layout: ")
+    Ok(
+        match Picker::new(
+            &get_layout_names(&twm_config.layouts),
+            "Select a layout: ".into(),
+        )
+        .get_selection()?
+        {
+            PickerSelection::None => bail!("No layout selected"),
+            PickerSelection::Selection(s) => s,
+            PickerSelection::ModifiedSelection(s) => s,
+        },
+    )
 }
 
 fn get_workspace_commands<'a>(
@@ -217,6 +232,32 @@ fn find_config_file(workspace_path: &Path) -> Result<Option<TwmLocal>> {
         Some(parent) => find_config_file(parent),
         None => Ok(None),
     }
+}
+
+pub fn session_name_for_path_recursive(
+    path: &str,
+    path_components: usize,
+) -> Result<Option<SessionName>> {
+    // start out with the session name for the base # of path components passed in
+    let name = SessionName::new(path, path_components);
+
+    // if no session with the auto-generated name exists, we say there is no session
+    // technically this won't work for custom-named sessions, but the original intention behind
+    // allowing a custom name was to keep those sessions somewhat isolated from the builtin functionalities
+    // so for now i am calling that behavior a feature not a bug
+    if !tmux_has_session(&name) {
+        return Ok(None);
+    }
+
+    // if we successfully parse the TWM_ROOT variable for the session and it matches our path,
+    // we've found the session we're looking for & return that session name
+    if let Ok(twm_root) = get_twm_root_for_session(&name) {
+        if twm_root == path {
+            return Ok(Some(name));
+        }
+    }
+    // if we have an error or our path doesn't match the TWM_ROOT, add more path components
+    session_name_for_path_recursive(path, path_components + 1)
 }
 
 fn get_session_name_recursive(path: &str, path_components: usize) -> Result<SessionName> {
