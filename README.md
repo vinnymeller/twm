@@ -1,41 +1,15 @@
 # twm
+
 Tmux Workspace Manager
 
-![twm](https://s2.gifyu.com/images/twm2.gif)
+`twm` is a highly customizable tool to manage different working directories (workspaces) as `tmux` sessions. It's fast, easy to use, and meant to be flexible enough to fit any workflow.
 
 
-## Another one?
-Yes - I was originally inspired to start using something to manage my tmux sessions by [ThePrimeagen's](https://github.com/ThePrimeagen/.dotfiles/blob/602019e902634188ab06ea31251c01c1a43d1621/bin/.local/scripts/tmux-sessionizer) tmux-sessionizer script. I used it for a bit, but wanted something more, that did a bit more.
-
-That led me to [tmuxinator](https://github.com/tmuxinator/tmuxinator). I thought the concept of layouts was really cool, and it felt nice to use, but there are several drawbacks that are addressed by [dmux](https://github.com/zdcthomas/dmux).
-
-Honestly I like dmux quite a bit but for some reason was annoyed by a dependency on `fzf`. After that I found the dependencyless [tmux-sessionizer](https://github.com/jrmoulton/tmux-sessionizer) that uses the Skim rust crate instead.
-
-I felt like something for *my* workflow was missing from each of these, hence this thing.
-
-## What features does it have?
-
-- Fuzzy find workspaces to open in tmux
-- Is able to open workspaces in tmux even if not run from within a tmux session
-- Fuzzy find existing sessions and attach or add a new session in the same session group (useful for multi-monitor workflows)
-- Highly configurable
-- Define different default behaviors for different workspace types
-- Sets useful environment variables (prefixed with `TWM_`) within your sessions to simplify extending `twm`'s functionality with other scripts
-
-
-I've explicitly avoided adding anything to `twm` that can be easily accomplished with scripts or other tools to a) avoid bloating this codebase and b) not force my workflow on anyone else.
-
-With that said, if it is *possible* but particularly *difficult* to accomplish something with other tools, I'm open to adding it.
-
-Examples of things that definitely won't be added:
-
-- Killing a workspace session and opening the most recent/default/etc one. Very simple shell script.
-
-Example I'm on the fence about:
-- Support for git worktrees. `tmux-sessionizer` has this, but I don't like how it's implemented. I have my own script for handling worktrees, but I don't particularly love it either, and it's not a trivial script. I do like it better though.
+![twm](https://vinnymeller.com/posts/intro_tmux_workspace_manager/twm-new.gif)
 
 
 ## Usage
+
 ```
 twm (tmux workspace manager) is a customizable tool for managing workspaces in tmux sessions.
 
@@ -44,11 +18,6 @@ Workspaces are defined as a directory matching any workspace pattern from your c
 Usage: twm [OPTIONS]
 
 Options:
-  -l, --layout
-          Prompt user to select a globally-defined layout to open the workspace with.
-
-          Using this option will override any other layout definitions.
-
   -e, --existing
           Prompt user to select an existing tmux session to attach to.
 
@@ -58,6 +27,14 @@ Options:
           Prompt user to start a new session in the same group as an existing session.
 
           Setting this option nullifies the layout and path options.
+
+  -d, --dont-attach
+          Don't attach to the workspace session after opening it
+
+  -l, --layout
+          Prompt user to select a globally-defined layout to open the workspace with.
+
+          Using this option will override any other layout definitions.
 
   -p, --path <PATH>
           Open the given path as a workspace.
@@ -69,37 +46,65 @@ Options:
 
           twm will not store any knowledge of the fact that you manually named the workspace. I.e. if you open the workspace at path `/home/user/dev/api` and name it `jimbob`, and then open the same workspace again manually, you will have two instances of the workspace open with different names.
 
-  -d, --dont-attach
-          Don't attach to the workspace session after opening it
+      --make-default-config
+          Make default configuration file.
+
+          By default will attempt to write a default configuration file and configuration schema in `$XDG_CONFIG_HOME/twm/` Using `-p/--path` with this flag will attempt to write the files to the folder specified.
+
+      --print-schema
+          Print the configuration file schema.
+
+          This can be used with tools (e.g. language servers) to provide autocompletion and validation when editing your configuration.
+
+      --print-layout-schema
+          Print the local layout configuration file schema.
+
+          This can be used with tools (e.g. language servers) to provide autocompletion and validation when editing your configuration.
+
+      --print-bash-completion
+          Print bash completions to stdout
+
+      --print-zsh-completion
+          Print zsh completions to stdout
+
+      --print-fish-completion
+          Print fish completions to stdout
+
+      --print-man
+          Print man(1) page to stdout
 
   -h, --help
           Print help (see a summary with '-h')
 
   -V, --version
           Print version
-
 ```
 
 ### Environment Variables
+
 `twm` will set several environment variables within all sessions generated by it. They're there to help with scripts or keybinds you want to interact with `twm`. They are:
 - `TWM` - set to `1` if the current shell is in a `twm` session
 - `TWM_ROOT` - the root directory of the new workspace
 - `TWM_TYPE` - the type of workspace. empty string if there was no workspace type defined.
 - `TWM_NAME` - the name of the tmux session created by `twm`.
 
-Example use cases:
-- keybind or alias to return to the root of the current workspace
--
 
 ## Installation
+
+### Cargo 
+
 The easiest way to install is to use Cargo:
 ```bash
 cargo install twm
 ```
 
-It is also available on NixOS via [nixpkgs](https://search.nixos.org/packages?channel=unstable&show=twm&from=0&size=50&sort=relevance&type=packages&query=twm)
+### Nix
+
+If you use Nix, it is available in [nixpkgs](https://search.nixos.org/packages?channel=unstable&show=twm&from=0&size=50&sort=relevance&type=packages&query=twm) as well as being packaged in this repo's  flake.
+
 
 ## Configuration
+
 See [CONFIGURATION.md](./doc/CONFIGURATION.md)
 
 
@@ -107,15 +112,46 @@ See [CONFIGURATION.md](./doc/CONFIGURATION.md)
 
 ```tmux
 # ~/.tmux.conf
-
-bind-key -r f run-shell "tmux neww twm"
-bind-key -r F run-shell "tmux neww twm -l"
-bind-key -r e run-shell "tmux switch -t $TWM_DEFAULT"  # i set TWM_DEFAULT in my shellrc
+bind f run-shell "tmux neww twm"
+bind F run-shell "tmux neww twm -l"
+bind e run-shell "tmux switch -t $TWM_DEFAULT"  # i set TWM_DEFAULT in my shellrc
 ```
 
 ## Contributing
 
 Contributions are more than welcome! If there are workflows you think would be useful to add, or if you find a bug, please open an issue or PR. For style and linting, I simply use `cargo fmt` and `clippy::all`.
 
+
+### Feature Philosophy
+
+I avoid adding anything that doesn't have obvious value being *inside* `twm`. If something that can be done *well* with a simple shell script or similar, it probably should be.
+
+#### Examples of things that won't be added:
+
+- Opening a fuzzy finder to choose a session to kill. Simple shell script / easy enough to do with built-in tmux features. 
+- Opening git worktree branches in windows. Use layouts for this. Detect when you're in a workspace with worktrees and run a script to open them how you want. This will always be more flexible than anything that would be built in.
+- Cloning a git repository into a new workspace. This and the above are pretty specific to `tmux-sessionizer` but useful to highlight the differences in our goals. `twm` offers `-p` to open a workspace at a specific path, so such a functionality could be done with something as simple as an alias `alias twm-clone='git clone $1 $2 && twm -p $2'`. You can do the same with mercurial, svn, whatever you want to do.
+
+
+#### Examples of things that could be added:
+
+- Support for different multiplexers (e.g. Zellij). Abstracting the tmux-specific parts of `twm` into something that could be set up with different multiplexer backends could be a great addition. But I only use tmux/nobody has asked so I haven't bothered.
+- (?)
+
+
+#### Features that snuck their way in
+
+There are some features I originally didn't want to add but have since been added anyways.
+- Fuzzy finding existing sessions to attach to. Originally I figured it just makes more sense to leave that to built in tmux features, but when the request was made to add a feature to open a session in a group (`twm -g`), I had to add everything needed for `twm -e` anyways. Additionally, if you want to *fuzzy find* existing sessions, having that functionality outside `twm` would rely on some other  fuzzy finder. Part of the point of `twm` coming with its own builtin finder is avoid having to rely on other tools in the first place. Thus `twm -g` and `twm -e` were born. I think `-e` is the least useful thing that will ever be added to `twm`.
+
+
 ## License
 [MIT](./LICENSE)
+
+
+## Similar Projects
+
+- [ThePrimeagen/tmux-sessionizer](https://github.com/ThePrimeagen/.dotfiles/blob/602019e902634188ab06ea31251c01c1a43d1621/bin/.local/scripts/tmux-sessionizer)
+- [dmux](https://github.com/zdcthomas/dmux)
+- [jrmoulton/tmux-sessionizer](https://github.com/jrmoulton/tmux-sessionizer)
+- [tmuxinator](https://github.com/tmuxinator/tmuxinator)
