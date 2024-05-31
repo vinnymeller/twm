@@ -5,7 +5,7 @@ Tmux Workspace Manager
 `twm` is a highly customizable tool to manage different working directories (workspaces) as `tmux` sessions. It's fast, easy to use, and meant to be flexible enough to fit any workflow.
 
 
-![twm](https://vinnymeller.com/posts/intro_tmux_workspace_manager/twm-new.gif)
+![twm](https://raw.githubusercontent.com/vinnymeller/twm-assets/e1a390f8aaa58994059d10271452f8fea5f94a26/twm.gif)
 
 
 ## Usage
