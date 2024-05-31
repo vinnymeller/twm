@@ -68,19 +68,19 @@ pub struct Arguments {
     pub print_layout_schema: bool,
 
     #[clap(long)]
-    /// Print bash completions
-    pub print_bash_completions: bool,
+    /// Print bash completions to stdout
+    pub print_bash_completion: bool,
 
     #[clap(long)]
-    /// Print zsh completions
-    pub print_zsh_completions: bool,
+    /// Print zsh completions to stdout
+    pub print_zsh_completion: bool,
 
     #[clap(long)]
-    /// Print fish completions
-    pub print_fish_completions: bool,
+    /// Print fish completions to stdout
+    pub print_fish_completion: bool,
 
     #[clap(long)]
-    /// Print man page
+    /// Print man(1) page to stdout
     pub print_man: bool,
 }
 
@@ -102,15 +102,15 @@ pub fn parse() -> Result<()> {
         } => handle_print_layout_schema(),
         Arguments { existing: true, .. } => handle_existing_session_selection(),
         Arguments {
-            print_bash_completions: true,
+            print_bash_completion: true,
             ..
         } => handle_print_bash_completions(),
         Arguments {
-            print_zsh_completions: true,
+            print_zsh_completion: true,
             ..
         } => handle_print_zsh_completions(),
         Arguments {
-            print_fish_completions: true,
+            print_fish_completion: true,
             ..
         } => handle_print_fish_completions(),
         Arguments {
