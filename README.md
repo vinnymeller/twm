@@ -151,7 +151,9 @@ There are some features I originally didn't want to add but have since been adde
 
 ## Similar Projects
 
-- [ThePrimeagen/tmux-sessionizer](https://github.com/ThePrimeagen/.dotfiles/blob/602019e902634188ab06ea31251c01c1a43d1621/bin/.local/scripts/tmux-sessionizer)
 - [dmux](https://github.com/zdcthomas/dmux)
 - [jrmoulton/tmux-sessionizer](https://github.com/jrmoulton/tmux-sessionizer)
+- [ThePrimeagen/tmux-sessionizer](https://github.com/ThePrimeagen/.dotfiles/blob/602019e902634188ab06ea31251c01c1a43d1621/bin/.local/scripts/tmux-sessionizer)
+- [tmux-sessionx](https://github.com/omerxx/tmux-sessionx)
 - [tmuxinator](https://github.com/tmuxinator/tmuxinator)
+- [tmuxp](https://github.com/tmux-python/tmuxp)
