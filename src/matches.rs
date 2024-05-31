@@ -2,7 +2,10 @@ use crate::config::TwmGlobal;
 use crate::workspace::path_meets_workspace_conditions;
 
 use jwalk::{
-    rayon::iter::{ParallelBridge, ParallelIterator},
+    rayon::{
+        current_num_threads,
+        iter::{ParallelBridge, ParallelIterator},
+    },
     WalkDir,
 };
 use nucleo::Injector;
@@ -11,6 +14,10 @@ pub fn find_workspaces_in_dir(dir: &str, config: &TwmGlobal, injector: Injector<
     WalkDir::new(dir)
         .max_depth(config.max_search_depth)
         .skip_hidden(false)
+        .parallelism(jwalk::Parallelism::RayonNewPool(std::cmp::max(
+            1,
+            current_num_threads() - 1,
+        )))
         .into_iter()
         .par_bridge()
         .filter_map(std::result::Result::ok)
