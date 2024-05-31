@@ -145,7 +145,7 @@ impl Picker {
             .direction(ListDirection::BottomToTop)
             .highlight_spacing(HighlightSpacing::Always)
             .highlight_symbol("> ")
-            .highlight_style(Style::default().bg(Color::Black))
+            .highlight_style(Style::default().fg(Color::LightBlue))
             .block(
                 Block::default().title_position(Position::Bottom).title(
                     Span::from(format!(
@@ -168,7 +168,7 @@ impl Picker {
 
         frame.render_stateful_widget(table, layout[0], &mut self.selection);
 
-        let prompt = Span::from(&self.prompt).fg(Color::Blue).bold();
+        let prompt = Span::from(&self.prompt).fg(Color::LightBlue).bold();
         let input_text = Span::raw(&self.filter);
         let input_line = Line::from(vec![prompt, input_text]);
         let input = Paragraph::new(vec![input_line]);
