@@ -52,6 +52,43 @@ pub fn handle_print_man() -> Result<()> {
     Ok(())
 }
 
+pub fn handle_make_default_layout_config(args: &Arguments) -> Result<()> {
+    let config_filename = format!(".{}.yaml", crate_name!());
+
+    let config_path = if args.path.is_some() {
+        let mut path = PathBuf::from(args.path.as_ref().expect("Just checked?"));
+        if path.is_file() {
+            path.pop();
+        }
+        path.join(&config_filename)
+    } else {
+        PathBuf::from(&config_filename)
+    };
+
+    if config_path.exists() {
+        anyhow::bail!(format!(
+            "Configuration file already exists. Please move or rename the file `{}` before trying again.",
+            config_path.display()
+        ));
+    }
+
+    if let Some(parent) = config_path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+
+    std::fs::write(
+        &config_path,
+        r#"layout:
+  name: local-layout
+  commands:
+    - echo "I'm a local layout"
+    - tmux split-window -h
+"#,
+    )?;
+
+    Ok(())
+}
+
 pub fn handle_make_default_config(args: &Arguments) -> Result<()> {
     let config_filename = format!("{}.yaml", crate_name!());
     let schema_filename = format!("{}.schema.json", crate_name!());
