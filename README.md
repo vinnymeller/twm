@@ -2,11 +2,18 @@
 
 Tmux Workspace Manager
 
-`twm` is a highly customizable tool to manage different working directories (workspaces) as `tmux` sessions. It's fast, easy to use, and meant to be flexible enough to fit any workflow.
+`twm` is a highly performant, customizable tool to manage workspaces as `tmux` sessions. Sensible defaults can get you up and running with zero configuration, or you can set it up to fit any workflow you like.
 
 
 ![twm](https://raw.githubusercontent.com/vinnymeller/twm-assets/e1a390f8aaa58994059d10271452f8fea5f94a26/twm.gif)
 
+### Table of Contents
+#### [CLI Usage](#usage)
+#### [Installation Instructions](#installation)
+#### [Exposed Environment Variables](#environment-variables)
+#### [Configuring twm](#configuration)
+#### [Configuration Recipes](#recipes)
+#### [Contribution Guidelines](#contributing)
 
 ## Usage
 
@@ -21,12 +28,12 @@ Options:
   -e, --existing
           Prompt user to select an existing tmux session to attach to.
 
-          This nullifies all other options.
+          This shouldn't be used with other options.
 
   -g, --group
           Prompt user to start a new session in the same group as an existing session.
 
-          Setting this option nullifies the layout and path options.
+          Setting this option will cause `-l/--layout` and `-p/--path` to be ignored.
 
   -d, --dont-attach
           Don't attach to the workspace session after opening it
@@ -34,7 +41,7 @@ Options:
   -l, --layout
           Prompt user to select a globally-defined layout to open the workspace with.
 
-          Using this option will override any other layout definitions.
+          Using this option will override any other layout definitions that would otherwise automatically be used when opening the workspace.
 
   -p, --path <PATH>
           Open the given path as a workspace.
@@ -44,20 +51,20 @@ Options:
   -n, --name <NAME>
           Force the workspace to be opened with the given name.
 
-          twm will not store any knowledge of the fact that you manually named the workspace. I.e. if you open the workspace at path `/home/user/dev/api` and name it `jimbob`, and then open the same workspace again manually, you will have two instances of the workspace open with different names.
+          When setting this option, you should be aware that twm will not "see" this session when performing other automatic actions. For example, if you have a workspace at ~/foobar and run `twm -n jimbob -p ~/foobar`, and then run `twm` and select `~/foobar` from the picker, a new session `foobar` will be created. If you then run `twm -g` and select `foobar`, `foobar-1` will be created in the `foobar` group.
 
       --make-default-config
           Make default configuration file.
 
-          By default will attempt to write a default configuration file and configuration schema in `$XDG_CONFIG_HOME/twm/` Using `-p/--path` with this flag will attempt to write the files to the folder specified.
+          By default will attempt to write a default configuration file and configuration schema in `$XDG_CONFIG_HOME/twm/` Using `-p/--path` with this flag will attempt to write the files to the folder specified. twm will not overwrite existing files. You will be prompted to rename/move the existing files before retrying.
 
-      --print-schema
-          Print the configuration file schema.
+      --print-config-schema
+          Print the configuration file (twm.yaml) schema.
 
           This can be used with tools (e.g. language servers) to provide autocompletion and validation when editing your configuration.
 
-      --print-layout-schema
-          Print the local layout configuration file schema.
+      --print-layout-config-schema
+          Print the local layout configuration file (.twm.yaml) schema.
 
           This can be used with tools (e.g. language servers) to provide autocompletion and validation when editing your configuration.
 
@@ -88,8 +95,14 @@ Options:
 - `TWM_TYPE` - the type of workspace. empty string if there was no workspace type defined.
 - `TWM_NAME` - the name of the tmux session created by `twm`.
 
+These can be used in many possible ways:
+- Instead of defining all your setup commands in a workspace-type-specific layout, you could have a 1 shared setup script defined globally that runs on workspace entry that checks `TWM_TYPE` for type-specific setup
+- You can use `TWM_ROOT` to perform actions if the workspace is in within a specific directory
+- You can check `TWM` to ensure you handle manually-created sessions differently than `twm`-created sessions in some automation task
+
 
 ## Installation
+Contributions are more than welcome! If there are workflows you think would be useful to add, or if you find a bug, please open an issue or PR. For style and linting, I simply use `cargo fmt` and `clippy::all`.
 
 ### Cargo 
 
@@ -105,21 +118,55 @@ If you use Nix, it is available in [nixpkgs](https://search.nixos.org/packages?c
 
 ## Configuration
 
-See [CONFIGURATION.md](./doc/CONFIGURATION.md)
+`twm` doesn't need any configuration to run. You can just install it and run `twm`, and the defaults should work for some.
+
+To get a decent default configuration file, you can run `twm --make-default-config`, which will attempt to write two files: `$XDG_CONFIG_HOME/twm/{twm.yaml,twm.schema.json}`. 
+
+You can pass `-p/--path <PATH>` with `--make-default-config` to write the files to a different folder.
+
+If you use `yaml-language-server`, the default configuration file will automatically be set up to use the `twm.schema.json` file for validation and completion.
+
+When you update `twm`, you can run `twm --print-config-schema > $XDG_CONFIG_HOME/twm/twm.schema.json` to ensure you have the latest schema file.
+
+For a full list of configuration options with examples, see [CONFIGURATION.md](./doc/CONFIGURATION.md)
 
 
-## Example `twm` tmux keybindings
+## Recipes
+
+### tmux keybindings
+
+Here are the basic twm bindings I personally use:
 
 ```tmux
 # ~/.tmux.conf
 bind f run-shell "tmux neww twm"
 bind F run-shell "tmux neww twm -l"
-bind e run-shell "tmux switch -t $TWM_DEFAULT"  # i set TWM_DEFAULT in my shellrc
+bind s run-shell "tmux neww twm -e"  # i rebind the original `s` to `S` so I can still use it
+bind g run-shell "tmux neww twm -g"
+bind e run-shell "tmux switch -t $TWM_DEFAULT"  # i set TWM_DEFAULT in my shellrc, just a session that is always available as a scratch area
+```
+
+### Useful aliases / scripts
+
+twm purposefully doesn't try to add features that are easily done with some light scripting. Here are a couple dumbed down examples of things I use:
+
+```zsh
+# ~/.zshrc
+alias twm-clone='git clone $1 $2 && twm -p $2'  # clone repo $1 to path $2 and open $2 with twm
+
+# kill current session and switch to last/next/previous session
+# i bind this to K in tmux
+kt() {
+  ORIG_SESS="$TWM_NAME"
+  tmux switch -l || tmux switch -n || tmux switch -p
+  tmux kill-session -t "$ORIG_SESS"
+}
+
 ```
 
 ## Contributing
 
-Contributions are more than welcome! If there are workflows you think would be useful to add, or if you find a bug, please open an issue or PR. For style and linting, I simply use `cargo fmt` and `clippy::all`.
+Contributions are of course welcome! It's not a huge project so I don't have a lot of guidelines. Make sure the tests (test*, for now :\\) pass. `cargo fmt`. `cargo clippy -- -D clippy::all`. That's all I can think of.
 
 
 ### Feature Philosophy
@@ -135,8 +182,7 @@ I avoid adding anything that doesn't have obvious value being *inside* `twm`. If
 
 #### Examples of things that could be added:
 
-- Support for different multiplexers (e.g. Zellij). Abstracting the tmux-specific parts of `twm` into something that could be set up with different multiplexer backends could be a great addition. But I only use tmux/nobody has asked so I haven't bothered.
-- (?)
+- Support for different multiplexers (e.g. Zellij). Abstracting the tmux-specific parts of `twm` into something that could be set up with different multiplexer backends could be a great addition. But I only use tmux/nobody has asked, so I haven't bothered.
 
 
 #### Features that snuck their way in

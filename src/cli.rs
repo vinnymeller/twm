@@ -1,7 +1,7 @@
 use crate::handler::{
     handle_existing_session_selection, handle_group_session_selection, handle_make_default_config,
-    handle_print_bash_completions, handle_print_fish_completions, handle_print_layout_schema,
-    handle_print_man, handle_print_schema, handle_print_zsh_completions,
+    handle_print_bash_completions, handle_print_config_schema, handle_print_fish_completions,
+    handle_print_layout_config_schema, handle_print_man, handle_print_zsh_completions,
     handle_workspace_selection,
 };
 use anyhow::Result;
@@ -17,13 +17,13 @@ pub struct Arguments {
     #[clap(short, long)]
     /// Prompt user to select an existing tmux session to attach to.
     ///
-    /// This nullifies all other options.
+    /// This shouldn't be used with other options.
     pub existing: bool,
 
     #[clap(short, long)]
     /// Prompt user to start a new session in the same group as an existing session.
     ///
-    /// Setting this option nullifies the layout and path options.
+    /// Setting this option will cause `-l/--layout` and `-p/--path` to be ignored.
     pub group: bool,
 
     #[clap(short, long)]
@@ -33,7 +33,7 @@ pub struct Arguments {
     #[clap(short, long)]
     /// Prompt user to select a globally-defined layout to open the workspace with.
     ///
-    /// Using this option will override any other layout definitions.
+    /// Using this option will override any other layout definitions that would otherwise automatically be used when opening the workspace.
     pub layout: bool,
 
     #[clap(short, long)]
@@ -45,7 +45,8 @@ pub struct Arguments {
     #[clap(short, long)]
     /// Force the workspace to be opened with the given name.
     ///
-    /// twm will not store any knowledge of the fact that you manually named the workspace. I.e. if you open the workspace at path `/home/user/dev/api` and name it `jimbob`, and then open the same workspace again manually, you will have two instances of the workspace open with different names.
+    /// When setting this option, you should be aware that twm will not "see" this session when performing other automatic actions.
+    /// For example, if you have a workspace at ~/foobar and run `twm -n jimbob -p ~/foobar`, and then run `twm` and select `~/foobar` from the picker, a new session `foobar` will be created. If you then run `twm -g` and select `foobar`, `foobar-1` will be created in the `foobar` group.
     pub name: Option<String>,
 
     #[clap(long)]
@@ -53,19 +54,20 @@ pub struct Arguments {
     ///
     /// By default will attempt to write a default configuration file and configuration schema in `$XDG_CONFIG_HOME/twm/`
     /// Using `-p/--path` with this flag will attempt to write the files to the folder specified.
+    /// twm will not overwrite existing files. You will be prompted to rename/move the existing files before retrying.
     pub make_default_config: bool,
 
     #[clap(long)]
-    /// Print the configuration file schema.
+    /// Print the configuration file (twm.yaml) schema.
     ///
     /// This can be used with tools (e.g. language servers) to provide autocompletion and validation when editing your configuration.
-    pub print_schema: bool,
+    pub print_config_schema: bool,
 
     #[clap(long)]
-    /// Print the local layout configuration file schema.
+    /// Print the local layout configuration file (.twm.yaml) schema.
     ///
     /// This can be used with tools (e.g. language servers) to provide autocompletion and validation when editing your configuration.
-    pub print_layout_schema: bool,
+    pub print_layout_config_schema: bool,
 
     #[clap(long)]
     /// Print bash completions to stdout
@@ -94,12 +96,13 @@ pub fn parse() -> Result<()> {
             ..
         } => handle_make_default_config(&args),
         Arguments {
-            print_schema: true, ..
-        } => handle_print_schema(),
-        Arguments {
-            print_layout_schema: true,
+            print_config_schema: true,
             ..
-        } => handle_print_layout_schema(),
+        } => handle_print_config_schema(),
+        Arguments {
+            print_layout_config_schema: true,
+            ..
+        } => handle_print_layout_config_schema(),
         Arguments { existing: true, .. } => handle_existing_session_selection(),
         Arguments {
             print_bash_completion: true,

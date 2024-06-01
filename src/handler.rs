@@ -35,12 +35,12 @@ pub fn handle_print_fish_completions() -> Result<()> {
     print_completion(Shell::Fish)
 }
 
-pub fn handle_print_schema() -> Result<()> {
+pub fn handle_print_config_schema() -> Result<()> {
     println!("{}", RawTwmGlobal::schema()?);
     Ok(())
 }
 
-pub fn handle_print_layout_schema() -> Result<()> {
+pub fn handle_print_layout_config_schema() -> Result<()> {
     println!("{}", TwmLayout::schema()?);
     Ok(())
 }
