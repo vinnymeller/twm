@@ -1,14 +1,8 @@
-use std::collections::HashMap;
-use std::path::Path;
-
-use crate::picker::get_skim_selection_from_slice;
+use crate::handler::{
+    handle_existing_session_selection, handle_group_session_selection, handle_make_default_config, handle_make_default_layout_config, handle_print_bash_completions, handle_print_config_schema, handle_print_fish_completions, handle_print_layout_config_schema, handle_print_man, handle_print_zsh_completions, handle_workspace_selection
+};
 use anyhow::Result;
 
-use crate::config::TwmGlobal;
-use crate::matches::{find_workspaces_in_dir, SafePath};
-use crate::tmux::{
-    attach_to_tmux_session, get_tmux_sessions, open_workspace, open_workspace_in_group,
-};
 use clap::Parser;
 
 #[derive(Parser, Default, Debug)]
@@ -18,98 +12,122 @@ use clap::Parser;
 /// Workspaces are defined as a directory matching any workspace pattern from your configuration. If no configuration is set, any directory containing a `.git` file/folder or a `.twm.yaml` file is considered a workspace.
 pub struct Arguments {
     #[clap(short, long)]
-    /// Prompt user to select a globally-defined layout to open the workspace with.
-    ///
-    /// Using this option will override any other layout definitions.
-    pub layout: bool,
-
-    #[clap(short, long)]
     /// Prompt user to select an existing tmux session to attach to.
     ///
-    /// This nullifies all other options.
+    /// This shouldn't be used with other options.
     pub existing: bool,
 
     #[clap(short, long)]
     /// Prompt user to start a new session in the same group as an existing session.
     ///
-    /// Setting this option nullifies the layout and path options.
+    /// Setting this option will cause `-l/--layout` and `-p/--path` to be ignored.
     pub group: bool,
+
+    #[clap(short, long)]
+    /// Don't attach to the workspace session after opening it.
+    pub dont_attach: bool,
+
+    #[clap(short, long)]
+    /// Prompt user to select a globally-defined layout to open the workspace with.
+    ///
+    /// Using this option will override any other layout definitions that would otherwise automatically be used when opening the workspace.
+    pub layout: bool,
 
     #[clap(short, long)]
     /// Open the given path as a workspace.
     ///
     /// Using this option does not require that the path be a valid workspace according to your configuration.
-    path: Option<String>,
+    pub path: Option<String>,
 
     #[clap(short, long)]
     /// Force the workspace to be opened with the given name.
     ///
-    /// twm will not store any knowledge of the fact that you manually named the workspace. I.e. if you open the workspace at path `/home/user/dev/api` and name it `jimbob`, and then open the same workspace again manually, you will have two instances of the workspace open with different names.
+    /// When setting this option, you should be aware that twm will not "see" this session when performing other automatic actions.
+    /// For example, if you have a workspace at ~/foobar and run `twm -n jimbob -p ~/foobar`, and then run `twm` and select `~/foobar` from the picker, a new session `foobar` will be created. If you then run `twm -g` and select `foobar`, `foobar-1` will be created in the `foobar` group.
     pub name: Option<String>,
 
-    #[clap(short, long)]
-    /// Don't attach to the workspace session after opening it.
-    pub dont_attach: bool,
+    #[clap(long)]
+    /// Make default configuration file.
+    ///
+    /// By default will attempt to write a default configuration file and configuration schema in `$XDG_CONFIG_HOME/twm/`
+    /// Using `-p/--path` with this flag will attempt to write the files to the folder specified.
+    /// twm will not overwrite existing files. You will be prompted to rename/move the existing files before retrying.
+    pub make_default_config: bool,
+
+    #[clap(long)]
+    /// Make default local layout configuration file.
+    ///
+    /// Will attempt to create `.twm.yaml` in the current directory. Will not overwrite existing files.
+    /// You can use `-p/--path <PATH>` to specify a different directory to write the file to.
+    pub make_default_layout_config: bool,
+
+    #[clap(long)]
+    /// Print the configuration file (twm.yaml) schema.
+    ///
+    /// This can be used with tools (e.g. language servers) to provide autocompletion and validation when editing your configuration.
+    pub print_config_schema: bool,
+
+    #[clap(long)]
+    /// Print the local layout configuration file (.twm.yaml) schema.
+    ///
+    /// This can be used with tools (e.g. language servers) to provide autocompletion and validation when editing your configuration.
+    pub print_layout_config_schema: bool,
+
+    #[clap(long)]
+    /// Print bash completions to stdout
+    pub print_bash_completion: bool,
+
+    #[clap(long)]
+    /// Print zsh completions to stdout
+    pub print_zsh_completion: bool,
+
+    #[clap(long)]
+    /// Print fish completions to stdout
+    pub print_fish_completion: bool,
+
+    #[clap(long)]
+    /// Print man(1) page to stdout
+    pub print_man: bool,
 }
 
 /// Parses the command line arguments and runs the program. Called from `main.rs`.
 pub fn parse() -> Result<()> {
     let args = Arguments::parse();
 
-    if args.existing {
-        let existing_sessions = get_tmux_sessions()?;
-        let session_name = get_skim_selection_from_slice(
-            &existing_sessions
-                .iter()
-                .map(|s| s.as_str())
-                .collect::<Vec<&str>>(), // TODO: not ideal...
-            "Select a session to attach to: ",
-        )?;
-        attach_to_tmux_session(&session_name)?;
-        Ok(())
-    } else if args.group {
-        let existing_sessions = get_tmux_sessions()?;
-        let group_session_name = get_skim_selection_from_slice(
-            &existing_sessions
-                .iter()
-                .map(|s| s.as_str())
-                .collect::<Vec<&str>>(), // TODO: not ideal...
-            "Select a session to group with: ",
-        )?;
-        open_workspace_in_group(&group_session_name, &args)?;
-        Ok(())
-    } else {
-        let config = TwmGlobal::load()?;
-        let mut matched_workspaces = HashMap::<SafePath, &str>::new();
-        // handle a path directly being passed in first
-        let workspace_path = if let Some(path) = args.path.clone() {
-            let path_full = std::fs::canonicalize(path)?;
-            match SafePath::try_from(path_full.as_path()) {
-                Ok(p) => p,
-                Err(_) => anyhow::bail!("Path is not valid UTF-8"),
-            }
-        } else {
-            for dir in &config.search_paths {
-                match SafePath::try_from(Path::new(dir)) {
-                    Ok(_) => find_workspaces_in_dir(dir.as_str(), &config, &mut matched_workspaces),
-                    Err(_) => {
-                        anyhow::bail!("Path is not valid UTF-8: {}", dir);
-                    }
-                }
-            }
-            let workspace_name = get_skim_selection_from_slice(
-                &matched_workspaces
-                    .keys()
-                    .map(|k| k.path.as_str())
-                    .collect::<Vec<&str>>(),
-                "Select a workspace: ",
-            )?;
-            SafePath::try_from(Path::new(workspace_name.as_str()))?
-        };
-
-        let workspace_type = matched_workspaces.get(&workspace_path).copied();
-        open_workspace(&workspace_path, workspace_type, &config, &args)?;
-
-        Ok(())
+    match args {
+        Arguments {
+            make_default_config: true,
+            ..
+        } => handle_make_default_config(&args),
+        Arguments {
+            make_default_layout_config: true,
+            ..
+        } => handle_make_default_layout_config(&args),
+        Arguments {
+            print_config_schema: true,
+            ..
+        } => handle_print_config_schema(),
+        Arguments {
+            print_layout_config_schema: true,
+            ..
+        } => handle_print_layout_config_schema(),
+        Arguments { existing: true, .. } => handle_existing_session_selection(),
+        Arguments {
+            print_bash_completion: true,
+            ..
+        } => handle_print_bash_completions(),
+        Arguments {
+            print_zsh_completion: true,
+            ..
+        } => handle_print_zsh_completions(),
+        Arguments {
+            print_fish_completion: true,
+            ..
+        } => handle_print_fish_completions(),
+        Arguments {
+            print_man: true, ..
+        } => handle_print_man(),
+        Arguments { group: true, .. } => handle_group_session_selection(&args),
+        _ => handle_workspace_selection(&args),
     }
 }

@@ -1,7 +1,7 @@
 use crate::cli::Arguments;
-use crate::config::{TwmGlobal, TwmLocal};
-use crate::matches::SafePath;
-use crate::picker::get_skim_selection_from_slice;
+use crate::config::{TwmGlobal, TwmLayout};
+use crate::layout::{get_commands_from_layout, get_commands_from_layout_name, get_layout_names};
+use crate::ui::picker::{Picker, PickerSelection};
 use anyhow::{bail, Context, Result};
 use std::os::unix::process::CommandExt;
 use std::path::Path;
@@ -12,11 +12,15 @@ pub struct SessionName {
 }
 
 impl SessionName {
-    pub fn new(path: &SafePath, path_components: usize) -> Self {
-        let mut path_parts: Vec<&str> = path.path.split('/').rev().take(path_components).collect();
+    pub fn new(path: &str, path_components: usize) -> Self {
+        let mut path_parts: Vec<&str> = path.split('/').rev().take(path_components).collect();
         path_parts.reverse();
         let raw_name = path_parts.join("/");
         Self::from(raw_name.as_str())
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.name
     }
 }
 
@@ -162,49 +166,65 @@ fn send_commands_to_session(session_name: &str, commands: &[&str]) -> Result<()>
 }
 
 fn get_layout_selection(twm_config: &TwmGlobal) -> Result<String> {
-    let layout_names = twm_config.layouts.get_layout_names();
-
-    get_skim_selection_from_slice(&layout_names, "Select a layout: ")
+    Ok(
+        match Picker::new(
+            &get_layout_names(&twm_config.layouts),
+            "Select a layout: ".into(),
+        )
+        .get_selection()?
+        {
+            PickerSelection::None => bail!("No layout selected"),
+            PickerSelection::Selection(s) => s,
+            PickerSelection::ModifiedSelection(s) => s,
+        },
+    )
 }
 
 fn get_workspace_commands<'a>(
     workspace_type: Option<&str>,
     twm_config: &'a TwmGlobal,
-    cli_config: &Arguments,
-    local_config: Option<&'a TwmLocal>,
+    cli_layout: Option<&'a str>,
+
+    local_config: Option<&'a TwmLayout>,
 ) -> Result<Option<Vec<&'a str>>> {
     // if user wants to choose a layout do this first
-    if cli_config.layout {
-        let layout_name = get_layout_selection(twm_config)?;
-        return Ok(Some(
-            twm_config.layouts.get_commands_from_name(&layout_name),
-        ));
+    if let Some(cli_layout) = cli_layout {
+        return Ok(Some(get_commands_from_layout_name(
+            cli_layout,
+            &twm_config.layouts,
+        )));
     }
 
     // next check if a local layout exists
     if let Some(local) = local_config {
-        return Ok(Some(twm_config.layouts.get_commands(&local.layout)));
+        return Ok(Some(get_commands_from_layout(
+            &local.layout,
+            &twm_config.layouts,
+        )));
     }
 
     match workspace_type {
         Some(t) => {
-            if let Some(layout) = &twm_config
-                .workspace_definitions
-                .get(t)
-                .expect("Workspace type not found!")
-                .default_layout
-            {
-                Ok(Some(twm_config.layouts.get_commands_from_name(layout)))
-            } else {
-                Ok(None)
+            for workspace_definition in &twm_config.workspace_definitions {
+                if workspace_definition.name == t {
+                    if let Some(layout_name) = &workspace_definition.default_layout {
+                        return Ok(Some(get_commands_from_layout_name(
+                            layout_name,
+                            &twm_config.layouts,
+                        )));
+                    } else {
+                        return Ok(None);
+                    }
+                }
             }
+            Ok(None)
         }
         None => Ok(None),
     }
 }
 
-fn find_config_file(workspace_path: &Path) -> Result<Option<TwmLocal>> {
-    let local_config = TwmLocal::load(workspace_path)?;
+fn find_config_file(workspace_path: &Path) -> Result<Option<TwmLayout>> {
+    let local_config = TwmLayout::load(workspace_path)?;
     if let Some(local_config) = local_config {
         return Ok(Some(local_config));
     }
@@ -214,7 +234,33 @@ fn find_config_file(workspace_path: &Path) -> Result<Option<TwmLocal>> {
     }
 }
 
-fn get_session_name_recursive(path: &SafePath, path_components: usize) -> Result<SessionName> {
+pub fn session_name_for_path_recursive(
+    path: &str,
+    path_components: usize,
+) -> Result<Option<SessionName>> {
+    // start out with the session name for the base # of path components passed in
+    let name = SessionName::new(path, path_components);
+
+    // if no session with the auto-generated name exists, we say there is no session
+    // technically this won't work for custom-named sessions, but the original intention behind
+    // allowing a custom name was to keep those sessions somewhat isolated from the builtin functionalities
+    // so for now i am calling that behavior a feature not a bug
+    if !tmux_has_session(&name) {
+        return Ok(None);
+    }
+
+    // if we successfully parse the TWM_ROOT variable for the session and it matches our path,
+    // we've found the session we're looking for & return that session name
+    if let Ok(twm_root) = get_twm_root_for_session(&name) {
+        if twm_root == path {
+            return Ok(Some(name));
+        }
+    }
+    // if we have an error or our path doesn't match the TWM_ROOT, add more path components
+    session_name_for_path_recursive(path, path_components + 1)
+}
+
+fn get_session_name_recursive(path: &str, path_components: usize) -> Result<SessionName> {
     let name = SessionName::new(path, path_components);
     // no session means we can use this name
     if !tmux_has_session(&name) {
@@ -228,7 +274,7 @@ fn get_session_name_recursive(path: &SafePath, path_components: usize) -> Result
         // if we successfully get the TWM_ROOT variable, we are in a TWM session. if TWM_ROOT matches the path we're currently trying
         // to open, we can use this name and will simply attach to the existing session
         Ok(twm_root) => {
-            if twm_root == path.path {
+            if twm_root == path {
                 Ok(name)
             } else {
                 // if TWM_ROOT doesn't match, we've had a name collision and need to recurse and try a new name with more path components
@@ -258,7 +304,7 @@ fn get_group_session_name(group_session_name: &str) -> Result<SessionName> {
 }
 
 pub fn open_workspace(
-    workspace_path: &SafePath,
+    workspace_path: &str,
     workspace_type: Option<&str>,
     config: &TwmGlobal,
     args: &Arguments,
@@ -268,9 +314,19 @@ pub fn open_workspace(
         None => get_session_name_recursive(workspace_path, config.session_name_path_components)?,
     };
     if !tmux_has_session(&tmux_name) {
-        create_tmux_session(&tmux_name, workspace_type, workspace_path.path.as_str())?;
-        let local_config = find_config_file(Path::new(workspace_path.path.as_str()))?;
-        let commands = get_workspace_commands(workspace_type, config, args, local_config.as_ref())?;
+        create_tmux_session(&tmux_name, workspace_type, workspace_path)?;
+        let local_config = find_config_file(Path::new(workspace_path))?;
+        let cli_layout = if args.layout {
+            Some(get_layout_selection(config)?)
+        } else {
+            None
+        };
+        let commands = get_workspace_commands(
+            workspace_type,
+            config,
+            cli_layout.as_deref(),
+            local_config.as_ref(),
+        )?;
         if let Some(layout_commands) = commands {
             send_commands_to_session(&tmux_name.name, &layout_commands)?;
         }
