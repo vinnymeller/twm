@@ -58,6 +58,11 @@ Options:
 
           By default will attempt to write a default configuration file and configuration schema in `$XDG_CONFIG_HOME/twm/` Using `-p/--path` with this flag will attempt to write the files to the folder specified. twm will not overwrite existing files. You will be prompted to rename/move the existing files before retrying.
 
+      --make-default-layout-config
+          Make default local layout configuration file.
+
+          Will attempt to create `.twm.yaml` in the current directory. Will not overwrite existing files. You can use `-p/--path <PATH>` to specify a different directory to write the file to.
+
       --print-config-schema
           Print the configuration file (twm.yaml) schema.
 

@@ -1,8 +1,5 @@
 use crate::handler::{
-    handle_existing_session_selection, handle_group_session_selection, handle_make_default_config,
-    handle_print_bash_completions, handle_print_config_schema, handle_print_fish_completions,
-    handle_print_layout_config_schema, handle_print_man, handle_print_zsh_completions,
-    handle_workspace_selection,
+    handle_existing_session_selection, handle_group_session_selection, handle_make_default_config, handle_make_default_layout_config, handle_print_bash_completions, handle_print_config_schema, handle_print_fish_completions, handle_print_layout_config_schema, handle_print_man, handle_print_zsh_completions, handle_workspace_selection
 };
 use anyhow::Result;
 
@@ -58,6 +55,13 @@ pub struct Arguments {
     pub make_default_config: bool,
 
     #[clap(long)]
+    /// Make default local layout configuration file.
+    ///
+    /// Will attempt to create `.twm.yaml` in the current directory. Will not overwrite existing files.
+    /// You can use `-p/--path <PATH>` to specify a different directory to write the file to.
+    pub make_default_layout_config: bool,
+
+    #[clap(long)]
     /// Print the configuration file (twm.yaml) schema.
     ///
     /// This can be used with tools (e.g. language servers) to provide autocompletion and validation when editing your configuration.
@@ -95,6 +99,10 @@ pub fn parse() -> Result<()> {
             make_default_config: true,
             ..
         } => handle_make_default_config(&args),
+        Arguments {
+            make_default_layout_config: true,
+            ..
+        } => handle_make_default_layout_config(&args),
         Arguments {
             print_config_schema: true,
             ..
