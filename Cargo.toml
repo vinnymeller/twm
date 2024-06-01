@@ -14,18 +14,18 @@ include = ["src/**/*", "Cargo.toml", "LICENSE", "README.md"]
 [dependencies]
 anyhow = "1"
 clap = { version = "4.1", features = ["cargo", "derive"] }
-config = "0.13"
-serde = { version = "1", features = ["derive"] }
-libc = "0.2"
-indexmap = "1.9"
-shellexpand = "3"
-xdg = "2.4"
-enum_dispatch = "0.3.13"
-crossterm = { version = "0.27.0", features = ["event-stream"] }
-nucleo = "0.5.0"
-ratatui = "0.26.3"
-serde_json = "1.0.117"
-schemars = "0.8.21"
 clap_complete = "4.5.2"
 clap_mangen = "0.2.20"
+config = "0.13"
+crossterm = "0.27.0"
+enum_dispatch = "0.3.13"
+indexmap = "1.9"
 jwalk = "0.8.1"
+libc = "0.2"
+nucleo = "0.5.0"
+ratatui = "0.26.3"
+schemars = "0.8.21"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1.0.117"
+shellexpand = "3"
+xdg = "2.4"
