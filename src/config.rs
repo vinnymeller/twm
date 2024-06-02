@@ -16,11 +16,50 @@ use std::str::FromStr;
 #[derive(Deserialize, Debug, JsonSchema)]
 #[serde(deny_unknown_fields)]
 struct WorkspaceDefinitionConfig {
+    /// Name for the workspace type defined by the list item.
+    ///
+    /// This name corresponds to the `TWM_TYPE` environment variable that will be set inside a session.
     pub name: String,
+
+    /// List of files for which at least one must be present in a directory to be considered a workspace of this type.
+    ///
+    /// If unset, this constraint is simply ignored.
+    ///
+    /// For example if the list is `["requirements.txt", "Pipfile", "pyproject.toml", "poetry.lock", "setup.py"]`, a
+    /// directory not containing *any* of those files cannot match this workspace definition.
     pub has_any_file: Option<Vec<String>>,
+
+    /// List of files for which all must be present in a directory to be considered a workspace of this type.
+    ///
+    /// If unset, this constraint is simply ignored.
+    ///
+    /// For example, if the list is `["flake.nix", ".envrc"]`, only directories with *both* files present can match
+    /// this workspace definition.
     pub has_all_files: Option<Vec<String>>,
+
+    /// List of files for which at least one must be missing in a directory to be considered a workspace of this type.
+    ///
+    /// If unset, this constraint is simply ignored.
+    ///
+    /// For example, if the list is `["node_modules", "target"]`, directories containing *both* `node_modules` and `target`
+    /// cannot match this workspace definition.
     pub missing_any_file: Option<Vec<String>>,
+
+    /// List of files for which all must be missing in a directory to be considered a workspace of this type.
+    ///
+    /// If unset, this constraint is simply ignored.
+    ///
+    /// For example, if the list is `["node_modules", "target"]`, directories containing *either* `node_modules` or `target`
+    /// cannot match this workspace definition.
     pub missing_all_files: Option<Vec<String>>,
+
+    /// The name of the layout to apply to a session during initialization.
+    ///
+    /// If unset, no layout will be applied by default.
+    ///
+    /// This option can be overridden either by using the `-l/--layout` command line flag, which will prompt you to select
+    /// a layout from the list of configured layouts, or by the presence of a `.twm.yaml` local layout configuration file
+    /// in the workspace directory.
     pub default_layout: Option<String>,
 }
 
@@ -80,11 +119,48 @@ impl From<WorkspaceDefinitionConfig> for WorkspaceDefinition {
 #[derive(Deserialize, Debug, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct RawTwmGlobal {
+    /// List of directories to have twm search for workspaces.
+    ///
+    /// If unset, defaults to `~` (shell expansion is supported).
+    ///
+    /// Be careful to not make your search paths overlap, e.g. if you include `~/projects` and `~/projects/foo/bar`
+    /// with `max_search_depth: 3`, `~/projects/foo/bar` will be searched twice and results will be displayed twice
+    /// in the picker. Generally it's easiest to just include the parent directory and increase `max_search_depth`
+    /// if needed.
     search_paths: Option<Vec<String>>,
+
+    /// List of configurations for workspaces.
+    ///
+    /// If unset, the default twm workspace definition is any directory containing a `.git` file/directory or a
+    /// `.twm.yaml` layout file.
+    ///
+    /// When a directory is found that matches a workspace definition the first match, in order of appearance in
+    /// this list, is the workspace "type" that will be for things like choosing which layout to apply to the session
+    /// and in setting the `TWM_TYPE` environment variable
     workspace_definitions: Option<Vec<WorkspaceDefinitionConfig>>,
+
+    /// Maximum depth to search for workspaces inside the `search_paths` directories.
+    /// If unset, defaults to 3.
     max_search_depth: Option<usize>,
+
+    /// Default number of components of the workspace directory to use for the created session name.
+    /// If unset, defaults to 1.
+    ///
+    /// E.g. if you open a workspace at `/home/vinny/projects/foo/bar` and `session_name_path_components` is set to 1,
+    /// The session name will be `bar`. If 2, `foo/bar`, etc.
     session_name_path_components: Option<usize>,
+
+    /// List of path components which will *exclude* a directory from being considered a workspace.
+    /// If unset, defaults to an empty list.
+    ///
+    /// A common use case would be to exclude things like `node_modules`, `target`, `__pycache__`, etc.
     exclude_path_components: Option<Vec<String>>,
+
+    /// List of layout definitions made available when opening a workspace.
+    /// If unset, defaults to an empty list.
+    ///
+    /// The layouts in this list can be used as the `default_layout` in a workspace definition and also
+    /// will be available in the layout list when using `-l/--layout` command line flag.
     layouts: Option<Vec<LayoutDefinition>>,
 }
 
@@ -107,6 +183,8 @@ pub struct TwmGlobal {
 #[derive(Debug, Deserialize, Clone, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct TwmLayout {
+    /// Layout definition to default to when opening the current workspace.
+    /// This will override the `default_layout` in the matching workspace definition if present.
     pub layout: LayoutDefinition,
 }
 
