@@ -348,7 +348,10 @@ mod tests {
 
     /// Just check the default values get set correctly to make sure I don't unintentionally change the default behavior somehow
     #[test]
+    #[serial]
     fn test_config_default_values() {
+        let orig_home = std::env::var_os("HOME");
+        std::env::set_var("HOME", "/home/twm");
         let raw_config = RawTwmGlobal::from_str("").unwrap();
         let config = TwmGlobal::try_from(raw_config).unwrap();
         assert_eq!(
@@ -368,7 +371,12 @@ mod tests {
                 layouts: vec![],
                 max_search_depth: 3,
             }
-        )
+        );
+        if let Some(home) = orig_home {
+            std::env::set_var("HOME", home);
+        } else {
+            std::env::remove_var("HOME");
+        }
     }
 
     /// Make noise if we change which env var overrides the config file path or it breaks
