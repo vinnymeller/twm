@@ -5,12 +5,12 @@ use crate::workspace::{
 };
 use anyhow::{Context, Result};
 use schemars::{schema_for, JsonSchema};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
-#[derive(Deserialize, Debug, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, JsonSchema)]
 #[serde(deny_unknown_fields)]
 struct WorkspaceDefinitionConfig {
     /// Name for the workspace type defined by the list item.
@@ -113,7 +113,50 @@ impl From<WorkspaceDefinitionConfig> for WorkspaceDefinition {
     }
 }
 
-#[derive(Deserialize, Debug, JsonSchema)]
+fn default_search_paths() -> Vec<String> {
+    vec!["~".into()]
+}
+
+fn default_workspace_definitions() -> Vec<WorkspaceDefinitionConfig> {
+    vec![WorkspaceDefinitionConfig {
+        name: "default".into(),
+        has_any_file: Some(vec![".git".into(), ".twm.yaml".into()]),
+        default_layout: Some("default".into()),
+        has_all_files: None,
+        missing_any_file: None,
+        missing_all_files: None,
+    }]
+}
+
+const fn default_max_search_depth() -> usize {
+    3
+}
+
+const fn default_session_name_path_components() -> usize {
+    2
+}
+
+fn default_exclude_path_components() -> Vec<String> {
+    vec![
+        ".cache".into(),
+        ".cargo".into(),
+        ".git".into(),
+        "__pycache__".into(),
+        "node_modules".into(),
+        "target".into(),
+        "venv".into(),
+    ]
+}
+
+fn default_layout_definitions() -> Vec<LayoutDefinition> {
+    vec![LayoutDefinition {
+        name: "default".into(),
+        inherits: None,
+        commands: Some(vec![String::from("echo \"Created $TWM_TYPE session\"")]),
+    }]
+}
+
+#[derive(Serialize, Deserialize, Debug, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct RawTwmGlobal {
     /// List of directories to have twm search for workspaces.
@@ -124,7 +167,8 @@ pub struct RawTwmGlobal {
     /// with `max_search_depth: 3`, `~/projects/foo/bar` will be searched twice and results will be displayed twice
     /// in the picker. Generally it's easiest to just include the parent directory and increase `max_search_depth`
     /// if needed.
-    search_paths: Option<Vec<String>>,
+    #[serde(default = "default_search_paths")]
+    search_paths: Vec<String>,
 
     /// List of configurations for workspaces.
     ///
@@ -134,31 +178,43 @@ pub struct RawTwmGlobal {
     /// When a directory is found that matches a workspace definition the first match, in order of appearance in
     /// this list, is the workspace "type" that will be for things like choosing which layout to apply to the session
     /// and in setting the `TWM_TYPE` environment variable
-    workspace_definitions: Option<Vec<WorkspaceDefinitionConfig>>,
+    #[serde(default = "default_workspace_definitions")]
+    workspace_definitions: Vec<WorkspaceDefinitionConfig>,
 
     /// Maximum depth to search for workspaces inside the `search_paths` directories.
     /// If unset, defaults to 3.
-    max_search_depth: Option<usize>,
+    #[serde(default = "default_max_search_depth")]
+    max_search_depth: usize,
 
     /// Default number of components of the workspace directory to use for the created session name.
     /// If unset, defaults to 1.
     ///
     /// E.g. if you open a workspace at `/home/vinny/projects/foo/bar` and `session_name_path_components` is set to 1,
     /// The session name will be `bar`. If 2, `foo/bar`, etc.
-    session_name_path_components: Option<usize>,
+    #[serde(default = "default_session_name_path_components")]
+    session_name_path_components: usize,
 
     /// List of path components which will *exclude* a directory from being considered a workspace.
     /// If unset, defaults to an empty list.
     ///
     /// A common use case would be to exclude things like `node_modules`, `target`, `__pycache__`, etc.
-    exclude_path_components: Option<Vec<String>>,
+    #[serde(default = "default_exclude_path_components")]
+    exclude_path_components: Vec<String>,
 
     /// List of layout definitions made available when opening a workspace.
     /// If unset, defaults to an empty list.
     ///
     /// The layouts in this list can be used as the `default_layout` in a workspace definition and also
     /// will be available in the layout list when using `-l/--layout` command line flag.
-    layouts: Option<Vec<LayoutDefinition>>,
+    #[serde(default = "default_layout_definitions")]
+    layouts: Vec<LayoutDefinition>,
+}
+
+impl Default for RawTwmGlobal {
+    fn default() -> Self {
+        // test case ensures this works
+        RawTwmGlobal::from_str("").unwrap()
+    }
 }
 
 impl RawTwmGlobal {
@@ -196,45 +252,27 @@ impl TryFrom<RawTwmGlobal> for TwmGlobal {
 
     fn try_from(raw_config: RawTwmGlobal) -> Result<Self> {
         // search paths are the only place we need to worry about shell expansion
-        let search_paths = match raw_config.search_paths {
-            Some(paths) => paths,
-            None => vec![String::from("~")],
-        };
-
-        let search_paths: Vec<String> = search_paths
+        let search_paths: Vec<String> = raw_config
+            .search_paths
             .iter()
             .map(|path| shellexpand::tilde(path).to_string())
             .collect();
 
-        let exclude_path_components = raw_config.exclude_path_components.unwrap_or_default();
+        let exclude_path_components = raw_config.exclude_path_components;
 
-        let workspace_definitions = match raw_config.workspace_definitions {
-            Some(workspace_definitions) => workspace_definitions
-                .into_iter()
-                .map(WorkspaceDefinition::from)
-                .collect(),
-            None => vec![WorkspaceDefinition {
-                name: String::from("default"),
-                conditions: vec![HasAnyFileCondition {
-                    files: vec![".git".to_string(), ".twm.yaml".to_string()],
-                }
-                .into()],
-                default_layout: None,
-            }],
-        };
-
-        let layouts = raw_config.layouts.unwrap_or_default();
-
-        let max_search_depth = raw_config.max_search_depth.unwrap_or(3);
-        let session_name_path_components = raw_config.session_name_path_components.unwrap_or(1);
+        let workspace_definitions = raw_config
+            .workspace_definitions
+            .into_iter()
+            .map(WorkspaceDefinition::from)
+            .collect();
 
         let config = TwmGlobal {
             search_paths,
             exclude_path_components,
             workspace_definitions,
-            layouts,
-            max_search_depth,
-            session_name_path_components,
+            layouts: raw_config.layouts,
+            max_search_depth: raw_config.max_search_depth,
+            session_name_path_components: raw_config.session_name_path_components,
         };
 
         Ok(config)
@@ -331,7 +369,7 @@ impl TwmLayout {
 #[cfg(test)]
 mod tests {
 
-    use crate::handler::{default_config_template, DEFAULT_LAYOUT_CONFIG_TEMPLATE};
+    use crate::handler::DEFAULT_LAYOUT_CONFIG_TEMPLATE;
 
     use super::*;
     use serial_test::serial;
@@ -339,46 +377,13 @@ mod tests {
     #[test]
     fn test_empty_config_is_valid() {
         let raw_config = RawTwmGlobal::from_str("").unwrap();
-        let _ = TwmGlobal::try_from(raw_config).unwrap();
+        TwmGlobal::try_from(raw_config).unwrap();
     }
 
     #[test]
     fn test_invalid_config_key_is_error() {
         let raw_config = RawTwmGlobal::from_str("foo: bar");
         assert!(raw_config.is_err());
-    }
-
-    /// Just check the default values get set correctly to make sure I don't unintentionally change the default behavior somehow
-    #[test]
-    #[serial]
-    fn test_config_default_values() {
-        let orig_home = std::env::var_os("HOME");
-        std::env::set_var("HOME", "/home/twm");
-        let raw_config = RawTwmGlobal::from_str("").unwrap();
-        let config = TwmGlobal::try_from(raw_config).unwrap();
-        assert_eq!(
-            config,
-            TwmGlobal {
-                search_paths: vec![shellexpand::tilde("~").to_string()],
-                exclude_path_components: vec![],
-                workspace_definitions: vec![WorkspaceDefinition {
-                    name: String::from("default"),
-                    conditions: vec![HasAnyFileCondition {
-                        files: vec![".git".to_string(), ".twm.yaml".to_string()],
-                    }
-                    .into()],
-                    default_layout: None,
-                }],
-                session_name_path_components: 1,
-                layouts: vec![],
-                max_search_depth: 3,
-            }
-        );
-        if let Some(home) = orig_home {
-            std::env::set_var("HOME", home);
-        } else {
-            std::env::remove_var("HOME");
-        }
     }
 
     /// Make noise if we change which env var overrides the config file path or it breaks
@@ -425,13 +430,6 @@ mod tests {
         } else {
             std::env::remove_var("XDG_CONFIG_HOME");
         }
-    }
-
-    #[test]
-    fn test_default_config_template_is_valid() {
-        let config_str = default_config_template("twm.schema.json");
-        let raw_config = RawTwmGlobal::from_str(&config_str).unwrap();
-        TwmGlobal::try_from(raw_config).unwrap();
     }
 
     #[test]

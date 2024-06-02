@@ -88,41 +88,6 @@ pub fn handle_make_default_layout_config(args: &Arguments) -> Result<()> {
     Ok(())
 }
 
-pub fn default_config_template(schema_filename: &str) -> String {
-    format!(
-        r#"# yaml-language-server: $schema=./{}
-search_paths:
-  - "~"
-
-exclude_path_components:
-  - .git
-  - .direnv
-  - .cargo
-  - node_modules
-  - venv
-  - target
-  - __pycache__
-
-max_search_depth: 5
-session_name_path_components: 2
-
-workspace_definitions:
-  - name: default
-    has_any_file:
-      - .git
-      - .twm.yaml
-    default_layout: default
-
-layouts:
-  - name: default
-    commands:
-      - echo "twm session created in $TWM_ROOT"
-
-"#,
-        schema_filename
-    )
-}
-
 pub fn handle_make_default_config(args: &Arguments) -> Result<()> {
     let config_filename = format!("{}.yaml", crate_name!());
     let schema_filename = format!("{}.schema.json", crate_name!());
@@ -156,8 +121,18 @@ before running this command again.",
         std::fs::create_dir_all(parent)?;
     }
     // write the schema to the schema path
-    std::fs::write(schema_path, RawTwmGlobal::schema()?)?;
-    std::fs::write(config_path, default_config_template(&schema_filename))?;
+    std::fs::write(&schema_path, RawTwmGlobal::schema()?)?;
+    std::fs::write(
+        &config_path,
+        // add the schema to the config file for yaml ls
+        format!(
+            r"# yaml-language-server: $schema=./{}
+{}
+        ",
+            schema_filename,
+            &serde_yaml::to_string(&RawTwmGlobal::default())?
+        ),
+    )?;
     Ok(())
 }
 
