@@ -160,6 +160,14 @@ When you update `twm`, you can run `twm --print-config-schema > $XDG_CONFIG_HOME
 
 For a full list of configuration options with examples, see [CONFIGURATION.md](./doc/CONFIGURATION.md)
 
+### Configuration Validation Examples
+
+Here's what the in-editor config validation looks like in neovim with using `yaml-language-server`:
+
+![twm configuration completion](https://raw.githubusercontent.com/vinnymeller/twm-assets/master/twm-config-completion.png)
+
+![twm configuration validation](https://raw.githubusercontent.com/vinnymeller/twm-assets/master/twm-config-errors.png)
+
 
 ## Recipes
 
