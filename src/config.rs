@@ -216,7 +216,7 @@ impl TryFrom<RawTwmGlobal> for TwmGlobal {
             None => vec![WorkspaceDefinition {
                 name: String::from("default"),
                 conditions: vec![HasAnyFileCondition {
-                    files: vec![".git".to_string()],
+                    files: vec![".git".to_string(), ".twm.yaml".to_string()],
                 }
                 .into()],
                 default_layout: None,
@@ -362,7 +362,7 @@ mod tests {
                 workspace_definitions: vec![WorkspaceDefinition {
                     name: String::from("default"),
                     conditions: vec![HasAnyFileCondition {
-                        files: vec![".git".to_string()],
+                        files: vec![".git".to_string(), ".twm.yaml".to_string()],
                     }
                     .into()],
                     default_layout: None,
