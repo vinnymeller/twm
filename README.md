@@ -105,6 +105,7 @@ These can be used in many possible ways:
 - You can use `TWM_ROOT` to perform actions if the workspace is in within a specific directory
 - You can check `TWM` to ensure you handle manually-created sessions differently than `twm`-created sessions in some automation task
 
+Additionally, setting the `TWM_CONFIG_FILE` env var will override the default config search path. If your config file is in a non-standard location, you can test twm with the default configuration with `TWM_CONFIG_FILE= twm`, or if your configuration is in the standard location, `TWM_CONFIG_FILE=/dev/null twm` will do.
 
 ## Installation
 Contributions are more than welcome! If there are workflows you think would be useful to add, or if you find a bug, please open an issue or PR. For style and linting, I simply use `cargo fmt` and `clippy::all`.
