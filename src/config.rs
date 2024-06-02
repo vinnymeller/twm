@@ -331,6 +331,8 @@ impl TwmLayout {
 #[cfg(test)]
 mod tests {
 
+    use crate::handler::{default_config_template, DEFAULT_LAYOUT_CONFIG_TEMPLATE};
+
     use super::*;
     use serial_test::serial;
 
@@ -423,5 +425,17 @@ mod tests {
         } else {
             std::env::remove_var("XDG_CONFIG_HOME");
         }
+    }
+
+    #[test]
+    fn test_default_config_template_is_valid() {
+        let config_str = default_config_template("twm.schema.json");
+        let raw_config = RawTwmGlobal::from_str(&config_str).unwrap();
+        TwmGlobal::try_from(raw_config).unwrap();
+    }
+
+    #[test]
+    fn test_default_layout_config_template_is_valid() {
+        TwmLayout::from_str(DEFAULT_LAYOUT_CONFIG_TEMPLATE).unwrap();
     }
 }

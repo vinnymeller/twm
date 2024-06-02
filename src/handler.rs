@@ -52,6 +52,13 @@ pub fn handle_print_man() -> Result<()> {
     Ok(())
 }
 
+pub const DEFAULT_LAYOUT_CONFIG_TEMPLATE: &str = r#"layout:
+  name: local-layout
+  commands:
+    - echo "I'm a local layout"
+    - tmux split-window -h
+"#;
+
 pub fn handle_make_default_layout_config(args: &Arguments) -> Result<()> {
     let config_filename = format!(".{}.yaml", crate_name!());
 
@@ -76,17 +83,44 @@ pub fn handle_make_default_layout_config(args: &Arguments) -> Result<()> {
         std::fs::create_dir_all(parent)?;
     }
 
-    std::fs::write(
-        &config_path,
-        r#"layout:
-  name: local-layout
-  commands:
-    - echo "I'm a local layout"
-    - tmux split-window -h
-"#,
-    )?;
+    std::fs::write(&config_path, DEFAULT_LAYOUT_CONFIG_TEMPLATE)?;
 
     Ok(())
+}
+
+pub fn default_config_template(schema_filename: &str) -> String {
+    format!(
+        r#"# yaml-language-server: $schema=./{}
+search_paths:
+  - "~"
+
+exclude_path_components:
+  - .git
+  - .direnv
+  - .cargo
+  - node_modules
+  - venv
+  - target
+  - __pycache__
+
+max_search_depth: 5
+session_name_path_components: 2
+
+workspace_definitions:
+  - name: default
+    has_any_file:
+      - .git
+      - .twm.yaml
+    default_layout: default
+
+layouts:
+  - name: default
+    commands:
+      - echo "twm session created in $TWM_ROOT"
+
+"#,
+        schema_filename
+    )
 }
 
 pub fn handle_make_default_config(args: &Arguments) -> Result<()> {
@@ -123,41 +157,7 @@ before running this command again.",
     }
     // write the schema to the schema path
     std::fs::write(schema_path, RawTwmGlobal::schema()?)?;
-    std::fs::write(
-        config_path,
-        format!(
-            r#"# yaml-language-server: $schema=./{}
-search_paths:
-  - "~"
-
-exclude_path_components:
-  - .git
-  - .direnv
-  - .cargo
-  - node_modules
-  - venv
-  - target
-  - __pycache__
-
-max_search_depth: 5
-session_name_path_components: 2
-
-workspace_definitions:
-  - name: default
-    has_any_file:
-      - .git
-      - .twm.yaml
-    default_layout: default
-
-layouts:
-  - name: default
-    commands:
-      - echo "twm session created in $TWM_ROOT"
-
-"#,
-            schema_filename
-        ),
-    )?;
+    std::fs::write(config_path, default_config_template(&schema_filename))?;
     Ok(())
 }
 
