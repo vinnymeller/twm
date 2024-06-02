@@ -121,6 +121,31 @@ cargo install twm
 If you use Nix, it is available in [nixpkgs](https://search.nixos.org/packages?channel=unstable&show=twm&from=0&size=50&sort=relevance&type=packages&query=twm) as well as being packaged in this repo's  flake.
 
 
+### Completion
+
+If you're using Nix, completion scripts are automatically installed with `twm`, both from this flake and nixpkgs.
+
+I don't believe it is packaged on any other OS. You can manually set up shell completions by putting the following in your shell config:
+
+#### Bash
+
+```
+# ~/.bashrc
+eval "$(twm --print-bash-completion)"
+```
+
+#### Zsh
+```
+# ~/.zshrc
+eval "$(twm --print-zsh-completion)"
+```
+
+#### Fish
+```
+# ~/.config/fish/config.fish
+twm --print-fish-completion | source
+```
+
 ## Configuration
 
 `twm` doesn't need any configuration to run. You can just install it and run `twm`, and the defaults should work for some.
