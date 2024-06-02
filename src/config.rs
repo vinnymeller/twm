@@ -6,6 +6,7 @@ use crate::workspace::{
 use anyhow::{Context, Result};
 use schemars::{schema_for, JsonSchema};
 use serde::{Deserialize, Serialize};
+use std::ffi::OsString;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
@@ -308,23 +309,35 @@ impl FromStr for RawTwmGlobal {
 }
 
 impl TwmGlobal {
-    fn get_config_path() -> Result<PathBuf> {
+    fn get_config_path() -> Result<Option<PathBuf>> {
         let config_file_name = format!("{}.yaml", clap::crate_name!());
         match std::env::var_os("TWM_CONFIG_FILE") {
             // if TWM_CONFIG_FILE is not set, search xdg dirs for config file as normal
-            None => {
+            c if c.as_ref().unwrap_or(&OsString::default()).is_empty() => {
                 let xdg_dirs = xdg::BaseDirectories::with_prefix(clap::crate_name!())
                     .with_context(|| "Failed to load XDG dirs.")?;
-                Ok(xdg_dirs.get_config_file(config_file_name))
+                let xdg_config_path = xdg_dirs.get_config_file(config_file_name);
+                match xdg_config_path.exists() {
+                    true => Ok(Some(xdg_config_path)),
+                    false => Ok(None),
+                }
             }
-            // if TWM_CONFIG_FILE is set, read from there no questions asked
-            Some(config_file_path) => Ok(PathBuf::from(config_file_path)),
+            // if we explicitly set the TWM_CONFIG_FILE, we should take it at face value and return the path here
+            // which will cause an error later if it doesn't turn out to exist. This choice is made because it could
+            // be a really annoying silent error if someone set the env var override somewhere, forgot, and changed it
+            // vs its unlikely that many people would not understand where they need to put their config file and end
+            // up confused why their settings aren't being picked up. ignoring a missing conf file lets the program run
+            // without someone explicitly setting up any config
+            Some(config_file_path) => Ok(Some(PathBuf::from(config_file_path))),
+            _ => unreachable!(),
         }
     }
 
     pub fn load() -> Result<Self> {
-        let config_path = TwmGlobal::get_config_path()?;
-        let raw_config = RawTwmGlobal::try_from(&config_path)?;
+        let raw_config = match TwmGlobal::get_config_path()? {
+            Some(path) => RawTwmGlobal::try_from(&path)?,
+            None => RawTwmGlobal::default(),
+        };
         let config = TwmGlobal::try_from(raw_config)
             .with_context(|| "Failed to validate configuration settings.")?;
         Ok(config)
@@ -395,7 +408,7 @@ mod tests {
         std::env::set_var("TWM_CONFIG_FILE", config_file);
 
         let config_path = TwmGlobal::get_config_path().unwrap();
-        assert_eq!(config_path, PathBuf::from(config_file));
+        assert_eq!(config_path, Some(PathBuf::from(config_file)));
 
         if let Some(twm) = orig_twm {
             std::env::set_var("TWM_CONFIG_FILE", twm);
@@ -406,7 +419,72 @@ mod tests {
 
     #[test]
     #[serial]
-    fn test_get_config_path_xdg_default() {
+    fn test_get_config_path_xdg_default_file_doesnt_exist() {
+        let orig_twm = std::env::var_os("TWM_CONFIG_FILE");
+        let orig_home = std::env::var_os("HOME");
+        let orig_xdg = std::env::var_os("XDG_CONFIG_HOME");
+        std::env::remove_var("TWM_CONFIG_FILE");
+        std::env::set_var("HOME", "/tmp");
+        std::env::set_var("XDG_CONFIG_HOME", "/tmp/.config");
+        let config_path = TwmGlobal::get_config_path().unwrap();
+        assert_eq!(
+            config_path,
+            None,
+            //Some(PathBuf::from("/tmp/.config/twm/twm.yaml"))
+        );
+
+        if let Some(twm) = orig_twm {
+            std::env::set_var("TWM_CONFIG_FILE", twm);
+        }
+        if let Some(home) = orig_home {
+            std::env::set_var("HOME", home);
+        } else {
+            std::env::remove_var("HOME");
+        }
+        if let Some(xdg) = orig_xdg {
+            std::env::set_var("XDG_CONFIG_HOME", xdg);
+        } else {
+            std::env::remove_var("XDG_CONFIG_HOME");
+        }
+    }
+
+    /// this could end up being a flaky test we'll see
+    #[test]
+    #[serial]
+    fn test_get_config_path_xdg_default_file_exists() {
+        let orig_twm = std::env::var_os("TWM_CONFIG_FILE");
+        let orig_home = std::env::var_os("HOME");
+        let orig_xdg = std::env::var_os("XDG_CONFIG_HOME");
+        std::env::remove_var("TWM_CONFIG_FILE");
+        std::env::set_var("HOME", "/tmp");
+        std::env::set_var("XDG_CONFIG_HOME", "/tmp/.config");
+        std::fs::create_dir_all("/tmp/.config/twm").unwrap();
+        std::fs::write("/tmp/.config/twm/twm.yaml", "").unwrap();
+        let config_path = TwmGlobal::get_config_path().unwrap();
+        assert_eq!(
+            config_path,
+            Some(PathBuf::from("/tmp/.config/twm/twm.yaml"))
+        );
+
+        if let Some(twm) = orig_twm {
+            std::env::set_var("TWM_CONFIG_FILE", twm);
+        }
+        if let Some(home) = orig_home {
+            std::env::set_var("HOME", home);
+        } else {
+            std::env::remove_var("HOME");
+        }
+        if let Some(xdg) = orig_xdg {
+            std::env::set_var("XDG_CONFIG_HOME", xdg);
+        } else {
+            std::env::remove_var("XDG_CONFIG_HOME");
+        }
+        let _ = std::fs::remove_file("/tmp/.config/twm/twm.yaml");
+    }
+
+    #[test]
+    #[serial]
+    fn test_get_config_path_empty_string_equals_unset() {
         let orig_twm = std::env::var_os("TWM_CONFIG_FILE");
         let orig_home = std::env::var_os("HOME");
         let orig_xdg = std::env::var_os("XDG_CONFIG_HOME");
@@ -414,11 +492,17 @@ mod tests {
         std::env::set_var("HOME", "/tmp");
         std::env::set_var("XDG_CONFIG_HOME", "/tmp/.config");
 
-        let config_path = TwmGlobal::get_config_path().unwrap();
-        assert_eq!(config_path, PathBuf::from("/tmp/.config/twm/twm.yaml"));
+        let unset_twm_file_config_path = TwmGlobal::get_config_path().unwrap();
+
+        std::env::set_var("TWM_CONFIG_FILE", "");
+        let empty_twm_file_config_path = TwmGlobal::get_config_path().unwrap();
+
+        assert_eq!(unset_twm_file_config_path, empty_twm_file_config_path);
 
         if let Some(twm) = orig_twm {
             std::env::set_var("TWM_CONFIG_FILE", twm);
+        } else {
+            std::env::remove_var("TWM_CONFIG_FILE");
         }
         if let Some(home) = orig_home {
             std::env::set_var("HOME", home);
