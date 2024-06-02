@@ -2,6 +2,7 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 
 #[derive(Deserialize, Debug, Clone, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct LayoutDefinition {
     pub name: String,
     pub inherits: Option<Vec<String>>,
