@@ -1,7 +1,7 @@
 use schemars::JsonSchema;
 use serde::Deserialize;
 
-#[derive(Deserialize, Debug, Clone, JsonSchema)]
+#[derive(Deserialize, Debug, Clone, JsonSchema, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct LayoutDefinition {
     /// Name of the layout.
