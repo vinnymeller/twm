@@ -14,6 +14,7 @@ use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
 #[derive(Deserialize, Debug, JsonSchema)]
+#[serde(deny_unknown_fields)]
 struct WorkspaceDefinitionConfig {
     pub name: String,
     pub has_any_file: Option<Vec<String>>,
@@ -77,6 +78,7 @@ impl From<WorkspaceDefinitionConfig> for WorkspaceDefinition {
 }
 
 #[derive(Deserialize, Debug, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct RawTwmGlobal {
     search_paths: Option<Vec<String>>,
     workspace_definitions: Option<Vec<WorkspaceDefinitionConfig>>,
@@ -103,6 +105,7 @@ pub struct TwmGlobal {
 }
 
 #[derive(Debug, Deserialize, Clone, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct TwmLayout {
     pub layout: LayoutDefinition,
 }
