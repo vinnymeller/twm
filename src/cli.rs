@@ -1,5 +1,12 @@
-use crate::handler::{
-    handle_existing_session_selection, handle_group_session_selection, handle_make_default_config, handle_make_default_layout_config, handle_print_bash_completions, handle_print_config_schema, handle_print_fish_completions, handle_print_layout_config_schema, handle_print_man, handle_print_zsh_completions, handle_workspace_selection
+use crate::{
+    handler::{
+        handle_existing_session_selection, handle_group_session_selection,
+        handle_make_default_config, handle_make_default_layout_config,
+        handle_print_bash_completions, handle_print_config_schema, handle_print_fish_completions,
+        handle_print_layout_config_schema, handle_print_man, handle_print_zsh_completions,
+        handle_workspace_selection,
+    },
+    ui::Tui,
 };
 use anyhow::Result;
 
@@ -91,9 +98,12 @@ pub struct Arguments {
 }
 
 /// Parses the command line arguments and runs the program. Called from `main.rs`.
+/// Since not every command needs a TUI, we start one up as necessary in each handler that needs one.
 pub fn parse() -> Result<()> {
     let args = Arguments::parse();
 
+    // This kind of matching couuld be avoided by using subcommands but I just generally like flags better.
+    // Who's going to try running `twm --group --print-man --print-config-schema` anyways? grow up
     match args {
         Arguments {
             make_default_config: true,
@@ -111,7 +121,6 @@ pub fn parse() -> Result<()> {
             print_layout_config_schema: true,
             ..
         } => handle_print_layout_config_schema(),
-        Arguments { existing: true, .. } => handle_existing_session_selection(),
         Arguments {
             print_bash_completion: true,
             ..
@@ -127,7 +136,17 @@ pub fn parse() -> Result<()> {
         Arguments {
             print_man: true, ..
         } => handle_print_man(),
-        Arguments { group: true, .. } => handle_group_session_selection(&args),
-        _ => handle_workspace_selection(&args),
+        _ => {
+            let mut tui = Tui::start()?;
+            let res = if args.existing {
+                handle_existing_session_selection(&mut tui)
+            } else if args.group {
+                handle_group_session_selection(&args, &mut tui)
+            } else {
+                handle_workspace_selection(&args, &mut tui)
+            };
+            tui.exit()?;
+            res
+        }
     }
 }

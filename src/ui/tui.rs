@@ -5,10 +5,13 @@ use crossterm::{
     event::{DisableMouseCapture, EnableMouseCapture},
     terminal::{self, EnterAlternateScreen, LeaveAlternateScreen},
 };
+use ratatui::backend::CrosstermBackend;
+use ratatui::Terminal;
+use std::time::Duration;
 
 use crate::ui::picker::Picker;
 
-use super::event::EventHandler;
+use super::EventHandler;
 pub type CrosstermTerminal = ratatui::Terminal<ratatui::backend::CrosstermBackend<std::io::Stderr>>;
 
 pub struct Tui {
@@ -17,6 +20,15 @@ pub struct Tui {
 }
 
 impl Tui {
+    pub fn start() -> Result<Self> {
+        let backend = CrosstermBackend::new(std::io::stderr());
+        let terminal = Terminal::new(backend)?;
+        let events = EventHandler::new(Duration::from_millis(15));
+        let mut tui = Self::new(terminal, events);
+        tui.enter()?;
+        Ok(tui)
+    }
+
     pub fn new(terminal: CrosstermTerminal, events: EventHandler) -> Self {
         Self { terminal, events }
     }

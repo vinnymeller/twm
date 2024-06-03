@@ -12,10 +12,11 @@ use crate::{
         attach_to_tmux_session, get_tmux_sessions, open_workspace, open_workspace_in_group,
         session_name_for_path_recursive,
     },
+    ui::Tui,
     workspace::get_workspace_type_for_path,
 };
 
-use crate::ui::picker::{Picker, PickerSelection};
+use crate::ui::{Picker, PickerSelection};
 
 fn print_completion(shell: Shell) -> Result<()> {
     let mut cmd = Arguments::command();
@@ -136,13 +137,13 @@ before running this command again.",
     Ok(())
 }
 
-pub fn handle_existing_session_selection() -> Result<()> {
+pub fn handle_existing_session_selection(tui: &mut Tui) -> Result<()> {
     let existing_sessions = get_tmux_sessions()?;
     let session_name = match Picker::new(
         &existing_sessions,
         "Select an existing session to attach to: ".into(),
     )
-    .get_selection()?
+    .get_selection(tui)?
     {
         PickerSelection::None => anyhow::bail!("No session selected"),
         PickerSelection::Selection(s) => s,
@@ -152,13 +153,13 @@ pub fn handle_existing_session_selection() -> Result<()> {
     Ok(())
 }
 
-pub fn handle_group_session_selection(args: &Arguments) -> Result<()> {
+pub fn handle_group_session_selection(args: &Arguments, tui: &mut Tui) -> Result<()> {
     let existing_sessions = get_tmux_sessions()?;
     let group_session_name = match Picker::new(
         &existing_sessions,
         "Select a session to group with: ".into(),
     )
-    .get_selection()?
+    .get_selection(tui)?
     {
         PickerSelection::None => anyhow::bail!("No session selected"),
         PickerSelection::Selection(s) => s,
@@ -168,7 +169,7 @@ pub fn handle_group_session_selection(args: &Arguments) -> Result<()> {
     Ok(())
 }
 
-pub fn handle_workspace_selection(args: &Arguments) -> Result<()> {
+pub fn handle_workspace_selection(args: &Arguments, tui: &mut Tui) -> Result<()> {
     let config = TwmGlobal::load()?;
     let (workspace_path, try_grouping) = if let Some(path) = &args.path {
         let path_full = std::fs::canonicalize(path)?;
@@ -185,7 +186,7 @@ pub fn handle_workspace_selection(args: &Arguments) -> Result<()> {
                 find_workspaces_in_dir(dir, &config, injector.clone())
             }
         });
-        match picker.get_selection()? {
+        match picker.get_selection(tui)? {
             PickerSelection::None => anyhow::bail!("No workspace selected"),
             PickerSelection::Selection(s) => (s, false),
             PickerSelection::ModifiedSelection(s) => (s, true),
@@ -206,7 +207,7 @@ pub fn handle_workspace_selection(args: &Arguments) -> Result<()> {
 
     let workspace_type =
         get_workspace_type_for_path(Path::new(&workspace_path), &config.workspace_definitions);
-    open_workspace(&workspace_path, workspace_type, &config, args)?;
+    open_workspace(&workspace_path, workspace_type, &config, args, tui)?;
 
     Ok(())
 }
