@@ -191,7 +191,7 @@ twm purposefully doesn't try to add features that are easily done with some ligh
 
 ```zsh
 # ~/.zshrc
-alias twm-clone='git clone $1 $2 && twm -p $2'  # clone repo $1 to path $2 and open $2 with twm
+alias twm-fork='twmg() { gh repo fork --clone --default-branch-only --remote "$1" "$2"; twm -p "$2"; }; twmg'  # fork repo $1 at path $2 and open it in twm
 
 # kill current session and switch to last/next/previous session
 # i bind this to K in tmux
