@@ -2,7 +2,6 @@ use anyhow::Result;
 use crossterm::event::{KeyEvent, KeyModifiers};
 
 use std::sync::Arc;
-use std::time::Duration;
 
 use crossterm::event::KeyCode;
 use nucleo::{
@@ -10,7 +9,6 @@ use nucleo::{
     Injector, Nucleo,
 };
 use ratatui::{
-    backend::CrosstermBackend,
     layout::{Constraint, Direction, Layout},
     style::{Color, Style, Stylize},
     text::{Line, Span},
@@ -18,10 +16,10 @@ use ratatui::{
         block::Position, Block, HighlightSpacing, List, ListDirection, ListItem, ListState,
         Paragraph,
     },
-    Frame, Terminal,
+    Frame,
 };
 
-use super::event::{Event, EventHandler};
+use super::event::Event;
 use super::tui::Tui;
 
 pub enum PickerSelection {
@@ -61,13 +59,7 @@ impl Picker {
         }
     }
 
-    pub fn get_selection(&mut self) -> Result<PickerSelection> {
-        let backend = CrosstermBackend::new(std::io::stderr());
-        let terminal = Terminal::new(backend)?;
-        let events = EventHandler::new(Duration::from_millis(15));
-        let mut tui = Tui::new(terminal, events);
-        tui.enter()?;
-
+    pub fn get_selection(&mut self, tui: &mut Tui) -> Result<PickerSelection> {
         let mut selection = PickerSelection::None;
         while !self.should_exit {
             tui.draw(self)?;
@@ -76,8 +68,6 @@ impl Picker {
                 Event::Key(key_event) => self.update(key_event),
             };
         }
-
-        tui.exit()?;
         Ok(selection)
     }
 

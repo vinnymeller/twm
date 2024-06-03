@@ -1,7 +1,8 @@
 use crate::cli::Arguments;
 use crate::config::{TwmGlobal, TwmLayout};
 use crate::layout::{get_commands_from_layout, get_commands_from_layout_name, get_layout_names};
-use crate::ui::picker::{Picker, PickerSelection};
+use crate::ui::Tui;
+use crate::ui::{Picker, PickerSelection};
 use anyhow::{bail, Context, Result};
 use std::os::unix::process::CommandExt;
 use std::path::Path;
@@ -165,13 +166,13 @@ fn send_commands_to_session(session_name: &str, commands: &[&str]) -> Result<()>
     Ok(())
 }
 
-fn get_layout_selection(twm_config: &TwmGlobal) -> Result<String> {
+fn get_layout_selection(twm_config: &TwmGlobal, tui: &mut Tui) -> Result<String> {
     Ok(
         match Picker::new(
             &get_layout_names(&twm_config.layouts),
             "Select a layout: ".into(),
         )
-        .get_selection()?
+        .get_selection(tui)?
         {
             PickerSelection::None => bail!("No layout selected"),
             PickerSelection::Selection(s) => s,
@@ -308,6 +309,7 @@ pub fn open_workspace(
     workspace_type: Option<&str>,
     config: &TwmGlobal,
     args: &Arguments,
+    tui: &mut Tui,
 ) -> Result<()> {
     let tmux_name = match &args.name {
         Some(name) => SessionName::from(name.as_str()),
@@ -317,7 +319,7 @@ pub fn open_workspace(
         create_tmux_session(&tmux_name, workspace_type, workspace_path)?;
         let local_config = find_config_file(Path::new(workspace_path))?;
         let cli_layout = if args.layout {
-            Some(get_layout_selection(config)?)
+            Some(get_layout_selection(config, tui)?)
         } else {
             None
         };
