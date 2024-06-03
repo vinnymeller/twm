@@ -31,4 +31,4 @@ shellexpand = "3"
 xdg = "2.4"
 
 [dev-dependencies]
-serial_test = "*"
+serial_test = "3"
