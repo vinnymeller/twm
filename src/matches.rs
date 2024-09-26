@@ -14,6 +14,7 @@ pub fn find_workspaces_in_dir(dir: &str, config: &TwmGlobal, injector: Injector<
     WalkDir::new(dir)
         .max_depth(config.max_search_depth)
         .skip_hidden(false)
+        .follow_links(config.follow_links)
         .parallelism(jwalk::Parallelism::RayonNewPool(std::cmp::max(
             1,
             current_num_threads() - 1,

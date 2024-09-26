@@ -45,6 +45,8 @@ session_name_path_components: 3    # how many parts of the workspace path to use
                                    # if you attempt to open two separate workspaces that would generate the same session name,
                                    # this value will be incremented until a unique session name is found
 
+follow_links: false                # whether to follow symlinks when searching for worksapces (default: true)
+
 workspace_definitions:             # our list of workspaces, each with different properties
     - name: python                 # they all have to be named
       has_any_file:                # if any file matches this list, we consider it a match, since its "has_any_file"
