@@ -157,6 +157,10 @@ fn default_layout_definitions() -> Vec<LayoutDefinition> {
     }]
 }
 
+fn default_follow_links() -> bool {
+    true
+}
+
 #[derive(Serialize, Deserialize, Debug, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct RawTwmGlobal {
@@ -209,6 +213,11 @@ pub struct RawTwmGlobal {
     /// will be available in the layout list when using `-l/--layout` command line flag.
     #[serde(default = "default_layout_definitions")]
     layouts: Vec<LayoutDefinition>,
+
+    /// Whether to follow symbolic links when searching for workspaces.
+    /// If unset, defaults to true.
+    #[serde(default = "default_follow_links")]
+    follow_links: bool,
 }
 
 impl Default for RawTwmGlobal {
@@ -232,6 +241,7 @@ pub struct TwmGlobal {
     pub session_name_path_components: usize,
     pub layouts: Vec<LayoutDefinition>,
     pub max_search_depth: usize,
+    pub follow_links: bool,
 }
 
 #[derive(Debug, Deserialize, Clone, JsonSchema)]
@@ -248,10 +258,8 @@ impl TwmLayout {
     }
 }
 
-impl TryFrom<RawTwmGlobal> for TwmGlobal {
-    type Error = anyhow::Error;
-
-    fn try_from(raw_config: RawTwmGlobal) -> Result<Self> {
+impl From<RawTwmGlobal> for TwmGlobal {
+    fn from(raw_config: RawTwmGlobal) -> Self {
         // search paths are the only place we need to worry about shell expansion
         let search_paths: Vec<String> = raw_config
             .search_paths
@@ -267,16 +275,15 @@ impl TryFrom<RawTwmGlobal> for TwmGlobal {
             .map(WorkspaceDefinition::from)
             .collect();
 
-        let config = TwmGlobal {
+        Self {
             search_paths,
             exclude_path_components,
             workspace_definitions,
             layouts: raw_config.layouts,
             max_search_depth: raw_config.max_search_depth,
             session_name_path_components: raw_config.session_name_path_components,
-        };
-
-        Ok(config)
+            follow_links: raw_config.follow_links,
+        }
     }
 }
 
@@ -338,8 +345,7 @@ impl TwmGlobal {
             Some(path) => RawTwmGlobal::try_from(&path)?,
             None => RawTwmGlobal::default(),
         };
-        let config = TwmGlobal::try_from(raw_config)
-            .with_context(|| "Failed to validate configuration settings.")?;
+        let config = TwmGlobal::from(raw_config);
         Ok(config)
     }
 }
@@ -390,7 +396,7 @@ mod tests {
     #[test]
     fn test_empty_config_is_valid() {
         let raw_config = RawTwmGlobal::from_str("").unwrap();
-        TwmGlobal::try_from(raw_config).unwrap();
+        let _ = TwmGlobal::from(raw_config);
     }
 
     #[test]
