@@ -1,8 +1,9 @@
+cargo-features = ["edition2024"]
 [package]
 name = "twm"
 description = "A customizable workspace manager for tmux"
 version = "0.11.0"
-edition = "2021"
+edition = "2024"
 license = "MIT"
 readme = "README.md"
 repository = "https://github.com/vinnymeller/twm"
@@ -16,13 +17,13 @@ anyhow = "1"
 clap = { version = "4.1", features = ["cargo", "derive"] }
 clap_complete = "4.5.2"
 clap_mangen = "0.2.20"
-config = "0.13"
-crossterm = "0.27.0"
+config = "0.15"
+crossterm = "0.28.1"
 enum_dispatch = "0.3.13"
 jwalk = "0.8.1"
 libc = "0.2"
 nucleo = "0.5.0"
-ratatui = "0.26.3"
+ratatui = "0.29.0"
 schemars = "0.8.21"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1.0.117"
