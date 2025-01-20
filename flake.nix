@@ -19,7 +19,7 @@
       let
         overlays = [ (import rust-overlay) ];
         pkgs = import nixpkgs { inherit system overlays; };
-        rustVersion = pkgs.rust-bin.selectLatestNightlyWith (
+        toolchain = pkgs.rust-bin.selectLatestNightlyWith (
           toolchain:
           toolchain.default.override {
             extensions = [
@@ -30,11 +30,14 @@
             ];
           }
         );
-        naersk-lib = pkgs.callPackage naersk { };
+        naersk' = pkgs.callPackage naersk {
+          cargo = toolchain;
+          rustc = toolchain;
+        };
 
         buildTwm =
           args:
-          naersk-lib.buildPackage (
+          naersk'.buildPackage (
             {
               src = ./.;
               nativeBuildInputs = [ pkgs.installShellFiles ];
@@ -69,7 +72,7 @@
           with pkgs;
           mkShell {
             buildInputs = with pkgs; [
-              rustVersion
+              toolchain
               pkg-config
             ];
             RUST_SRC_PATH = rustPlatform.rustLibSrc;

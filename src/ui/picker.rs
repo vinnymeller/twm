@@ -5,18 +5,18 @@ use std::sync::Arc;
 
 use crossterm::event::KeyCode;
 use nucleo::{
-    pattern::{CaseMatching, Normalization},
     Injector, Nucleo,
+    pattern::{CaseMatching, Normalization},
 };
 use ratatui::{
+    Frame,
     layout::{Constraint, Direction, Layout},
     style::{Color, Style, Stylize},
     text::{Line, Span},
     widgets::{
-        block::Position, Block, HighlightSpacing, List, ListDirection, ListItem, ListState,
-        Paragraph,
+        Block, HighlightSpacing, List, ListDirection, ListItem, ListState, Paragraph,
+        block::Position,
     },
-    Frame,
 };
 
 use super::event::Event;
@@ -147,14 +147,11 @@ impl Picker {
                 ),
             );
 
-        let layout = Layout::new(
-            Direction::Vertical,
-            [
-                Constraint::Length(frame.size().height - 1),
-                Constraint::Length(1),
-            ],
-        )
-        .split(frame.size());
+        let layout = Layout::new(Direction::Vertical, [
+            Constraint::Length(frame.area().height - 1),
+            Constraint::Length(1),
+        ])
+        .split(frame.area());
 
         frame.render_stateful_widget(table, layout[0], &mut self.selection);
 
@@ -163,10 +160,10 @@ impl Picker {
         let input_line = Line::from(vec![prompt, input_text]);
         let input = Paragraph::new(vec![input_line]);
         frame.render_widget(input, layout[1]);
-        frame.set_cursor(
+        frame.set_cursor_position((
             layout[1].x + self.cursor_pos + self.prompt.len() as u16,
             layout[1].y,
-        );
+        ));
     }
 
     fn get_selected_text(&self) -> Option<String> {
