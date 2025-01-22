@@ -1,10 +1,15 @@
 use enum_dispatch::enum_dispatch;
 use std::path::Path;
 
+/// Defines a type of workspace and the conditions that must be met for a directory
+/// to be considered that type of workspace.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WorkspaceDefinition {
+    /// The name/type of the workspace. This will be set as TWM_TYPE in the session.
     pub name: String,
+    /// List of conditions that must all be met for a directory to match this workspace type.
     pub conditions: Vec<WorkspaceConditionEnum>,
+    /// Optional name of a layout to apply by default when creating a session for this workspace type.
     pub default_layout: Option<String>,
 }
 

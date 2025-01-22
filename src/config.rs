@@ -76,7 +76,7 @@ impl From<WorkspaceDefinitionConfig> for WorkspaceDefinition {
 
         if let Some(has_all_files) = config.has_all_files {
             if !has_all_files.is_empty() {
-                let condition = HasAnyFileCondition {
+                let condition = HasAllFilesCondition {
                     files: has_all_files,
                 };
                 conditions.push(condition.into());
