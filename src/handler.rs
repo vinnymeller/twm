@@ -1,8 +1,8 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::Result;
-use clap::{crate_name, CommandFactory};
-use clap_complete::{generate, Shell};
+use clap::{CommandFactory, crate_name};
+use clap_complete::{Shell, generate};
 
 use crate::{
     cli::Arguments,
@@ -137,7 +137,7 @@ before running this command again.",
     Ok(())
 }
 
-pub fn handle_existing_session_selection(tui: &mut Tui) -> Result<()> {
+pub fn handle_existing_session_selection(args: &Arguments, tui: &mut Tui) -> Result<()> {
     let existing_sessions = get_tmux_sessions()?;
     let session_name = match Picker::new(
         &existing_sessions,
@@ -149,6 +149,10 @@ pub fn handle_existing_session_selection(tui: &mut Tui) -> Result<()> {
         PickerSelection::Selection(s) => s,
         PickerSelection::ModifiedSelection(s) => s,
     };
+    tui.exit()?;
+    if args.print_workspace_name {
+        println!("{}", session_name);
+    }
     attach_to_tmux_session(&session_name)?;
     Ok(())
 }
@@ -165,6 +169,10 @@ pub fn handle_group_session_selection(args: &Arguments, tui: &mut Tui) -> Result
         PickerSelection::Selection(s) => s,
         PickerSelection::ModifiedSelection(s) => s,
     };
+    tui.exit()?;
+    if args.print_workspace_name {
+        println!("{}", group_session_name);
+    }
     open_workspace_in_group(&group_session_name, args)?;
     Ok(())
 }

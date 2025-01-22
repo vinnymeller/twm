@@ -4,7 +4,7 @@ use crate::workspace::{
     WorkspaceConditionEnum, WorkspaceDefinition,
 };
 use anyhow::{Context, Result};
-use schemars::{schema_for, JsonSchema};
+use schemars::{JsonSchema, schema_for};
 use serde::{Deserialize, Serialize};
 use std::ffi::OsString;
 use std::fs;
@@ -357,9 +357,9 @@ impl FromStr for TwmLayout {
         let settings = config::Config::builder()
             .add_source(config::File::from_str(config, config::FileFormat::Yaml))
             .build()
-            .with_context(|| {
-                "Failed to build configuration. You should never see this. I think."
-            })?;
+            .with_context(
+                || "Failed to build configuration. You should never see this. I think.",
+            )?;
 
         let local_config = settings
             .try_deserialize()
