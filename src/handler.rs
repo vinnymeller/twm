@@ -139,6 +139,7 @@ before running this command again.",
 
 pub fn handle_existing_session_selection(args: &Arguments, tui: &mut Tui) -> Result<()> {
     let existing_sessions = get_tmux_sessions()?;
+    tui.enter()?;
     let session_name = match Picker::new(
         &existing_sessions,
         "Select an existing session to attach to: ".into(),
@@ -159,6 +160,7 @@ pub fn handle_existing_session_selection(args: &Arguments, tui: &mut Tui) -> Res
 
 pub fn handle_group_session_selection(args: &Arguments, tui: &mut Tui) -> Result<()> {
     let existing_sessions = get_tmux_sessions()?;
+    tui.enter()?;
     let group_session_name = match Picker::new(
         &existing_sessions,
         "Select a session to group with: ".into(),
@@ -194,6 +196,7 @@ pub fn handle_workspace_selection(args: &Arguments, tui: &mut Tui) -> Result<()>
                 find_workspaces_in_dir(dir, &config, injector.clone())
             }
         });
+        tui.enter()?;
         match picker.get_selection(tui)? {
             PickerSelection::None => anyhow::bail!("No workspace selected"),
             PickerSelection::Selection(s) => (s, false),

@@ -25,8 +25,7 @@ impl Tui {
         let backend = CrosstermBackend::new(std::io::stderr());
         let terminal = Terminal::new(backend)?;
         let events = EventHandler::new(Duration::from_millis(15));
-        let mut tui = Self::new(terminal, events);
-        tui.enter()?;
+        let tui = Self::new(terminal, events);
         Ok(tui)
     }
 
