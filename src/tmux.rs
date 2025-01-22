@@ -122,8 +122,8 @@ fn attach_to_tmux_session_outside_tmux(session_name: &str) -> Result<()> {
         .args(["-c", format!("tmux attach -t {}", session_name).as_str()])
         .exec();
     anyhow::bail!(
-        "Failed to attach to tmux session with name {repo_name} outside tmux: {exec_error}",
-        repo_name = session_name,
+        "Failed to attach to tmux session with name {session_name} outside tmux: {exec_error}",
+        session_name = session_name,
         exec_error = exec_error
     );
 }
