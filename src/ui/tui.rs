@@ -5,8 +5,8 @@ use crossterm::{
     event::{DisableMouseCapture, EnableMouseCapture},
     terminal::{self, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use ratatui::backend::CrosstermBackend;
 use ratatui::Terminal;
+use ratatui::backend::CrosstermBackend;
 use std::time::Duration;
 
 use crate::ui::picker::Picker;
@@ -15,6 +15,7 @@ use super::EventHandler;
 pub type CrosstermTerminal = ratatui::Terminal<ratatui::backend::CrosstermBackend<std::io::Stderr>>;
 
 pub struct Tui {
+    running: bool,
     terminal: CrosstermTerminal,
     pub events: EventHandler,
 }
@@ -30,10 +31,18 @@ impl Tui {
     }
 
     pub fn new(terminal: CrosstermTerminal, events: EventHandler) -> Self {
-        Self { terminal, events }
+        Self {
+            terminal,
+            events,
+            running: false,
+        }
     }
 
     pub fn enter(&mut self) -> Result<()> {
+        if self.running {
+            return Ok(());
+        }
+        self.running = true;
         terminal::enable_raw_mode()?;
         crossterm::execute!(io::stderr(), EnterAlternateScreen, EnableMouseCapture)?;
 
@@ -55,13 +64,24 @@ impl Tui {
     }
 
     pub fn exit(&mut self) -> Result<()> {
+        if !self.running {
+            return Ok(());
+        }
         Self::reset()?;
         self.terminal.show_cursor()?;
+        self.running = false;
         Ok(())
     }
 
     pub fn draw(&mut self, picker: &mut Picker) -> Result<()> {
         self.terminal.draw(|frame| picker.render(frame))?;
         Ok(())
+    }
+}
+
+impl Drop for Tui {
+    fn drop(&mut self) {
+        self.exit()
+            .unwrap_or_else(|e| eprintln!("Failed to exit TUI: {}", e));
     }
 }

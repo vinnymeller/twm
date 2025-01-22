@@ -3,7 +3,7 @@ use crate::config::{TwmGlobal, TwmLayout};
 use crate::layout::{get_commands_from_layout, get_commands_from_layout_name, get_layout_names};
 use crate::ui::Tui;
 use crate::ui::{Picker, PickerSelection};
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use std::os::unix::process::CommandExt;
 use std::path::Path;
 use std::process::{Command, Output};
@@ -318,20 +318,28 @@ pub fn open_workspace(
     if !tmux_has_session(&tmux_name) {
         create_tmux_session(&tmux_name, workspace_type, workspace_path)?;
         let local_config = find_config_file(Path::new(workspace_path))?;
-        let cli_layout = if args.layout {
+        let cli_layout = if args.command.is_none() && args.layout {
             Some(get_layout_selection(config, tui)?)
         } else {
             None
         };
-        let commands = get_workspace_commands(
-            workspace_type,
-            config,
-            cli_layout.as_deref(),
-            local_config.as_ref(),
-        )?;
+        let commands = if let Some(command) = &args.command {
+            Some(vec![command.as_str()])
+        } else {
+            get_workspace_commands(
+                workspace_type,
+                config,
+                cli_layout.as_deref(),
+                local_config.as_ref(),
+            )?
+        };
         if let Some(layout_commands) = commands {
             send_commands_to_session(&tmux_name.name, &layout_commands)?;
         }
+    }
+    tui.exit()?;
+    if args.print_workspace_name {
+        println!("{}", tmux_name.as_str());
     }
     if !args.dont_attach {
         attach_to_tmux_session(&tmux_name.name)?;

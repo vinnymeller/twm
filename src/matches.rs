@@ -2,11 +2,11 @@ use crate::config::TwmGlobal;
 use crate::workspace::path_meets_workspace_conditions;
 
 use jwalk::{
+    WalkDir,
     rayon::{
         current_num_threads,
         iter::{ParallelBridge, ParallelIterator},
     },
-    WalkDir,
 };
 use nucleo::Injector;
 

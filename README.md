@@ -53,6 +53,14 @@ Options:
 
           When setting this option, you should be aware that twm will not "see" this session when performing other automatic actions. For example, if you have a workspace at ~/foobar and run `twm -n jimbob -p ~/foobar`, and then run `twm` and select `~/foobar` from the picker, a new session `foobar` will be created. If you then run `twm -g` and select `foobar`, `foobar-1` will be created in the `foobar` group.
 
+  -N, --print-workspace-name
+          Print the name of the workspace generated for the given path to stdout.
+
+          This can be used with other options.
+
+  -c, --command <COMMAND>
+          Override any layouts and open the workspace with the given command instead
+
       --make-default-config
           Make default configuration file.
 

@@ -53,6 +53,17 @@ pub struct Arguments {
     /// For example, if you have a workspace at ~/foobar and run `twm -n jimbob -p ~/foobar`, and then run `twm` and select `~/foobar` from the picker, a new session `foobar` will be created. If you then run `twm -g` and select `foobar`, `foobar-1` will be created in the `foobar` group.
     pub name: Option<String>,
 
+    #[clap(short, long)]
+    #[clap(short = 'N')]
+    /// Print the name of the workspace generated for the given path to stdout.
+    ///
+    /// This can be used with other options.
+    pub print_workspace_name: bool,
+
+    #[clap(short, long)]
+    /// Override any layouts and open the workspace with the given command instead.
+    pub command: Option<String>,
+
     #[clap(long)]
     /// Make default configuration file.
     ///
@@ -139,7 +150,7 @@ pub fn parse() -> Result<()> {
         _ => {
             let mut tui = Tui::start()?;
             let res = if args.existing {
-                handle_existing_session_selection(&mut tui)
+                handle_existing_session_selection(&args, &mut tui)
             } else if args.group {
                 handle_group_session_selection(&args, &mut tui)
             } else {
