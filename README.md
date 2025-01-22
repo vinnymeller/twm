@@ -138,19 +138,19 @@ I don't believe it is packaged on any other OS. You can manually set up shell co
 
 #### Bash
 
-```
+```bash
 # ~/.bashrc
 eval "$(twm --print-bash-completion)"
 ```
 
 #### Zsh
-```
+```bash
 # ~/.zshrc
 eval "$(twm --print-zsh-completion)"
 ```
 
 #### Fish
-```
+```fish
 # ~/.config/fish/config.fish
 twm --print-fish-completion | source
 ```
@@ -193,11 +193,46 @@ bind g run-shell "tmux neww twm -g"
 bind e run-shell "tmux switch -t $TWM_DEFAULT"  # i set TWM_DEFAULT in my shellrc, just a session that is always available as a scratch area
 ```
 
-### Useful aliases / scripts
+### Scripting
 
-twm purposefully doesn't try to add features that are easily done with some light scripting. Here are a couple dumbed down examples of things I use:
 
-```zsh
+#### Switching to a workspace from neovim
+
+One thing I wanted to do was to be able to switch to a new workspace from my [snacks.nvim](https://github.com/folke/snacks.nvim) dashboard's recent project selector.
+
+```lua
+-- ~/.config/nvim/lua/snacks/init.lua
+-- ...
+        action = function(project_path)
+                local tmux = vim.fn.getenv("TMUX")
+                if tmux == nil then
+                        -- if not in tmux already, do something else, maybe just set cwd or something
+                        return
+                end
+                -- -d to not attach, -N to print the session name to stdout, -p to use the path we selected in neovim, sub(1, -2) to remove the trailing newline
+                local twm_workspace_name = vim.system({"twm", "-d", "-N", "-p", project_path}, {text = true}):wait().stdout:sub(1, -2)
+                vim.system({"tmux", "switch-client"})
+        end
+-- ...
+```
+
+#### Start new shells in a "default" workspace
+
+I like to make sure I'm always in tmux when I'm in the terminal, so I have something like this in my `.zshrc`
+
+```bash
+# ~/.zshrc
+export TWM_DEFAULT="default"
+tmux has-session -t $TWM_DEFAULT >/dev/null || twm -d -p $HOME -n $TWM_DEFAULT
+if [ -z "$TWM" ]; then
+        tmux switch -t $TWM_DEFAULT
+fi
+```
+
+
+#### Useful shell aliases / functions I've used
+
+```bash
 # ~/.zshrc
 alias twm-fork='twmg() { gh repo fork --clone --default-branch-only --remote "$1" "$2"; twm -p "$2"; }; twmg'  # fork repo $1 at path $2 and open it in twm
 
