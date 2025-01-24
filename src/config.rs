@@ -1,10 +1,10 @@
 use crate::layout::LayoutDefinition;
 use crate::workspace::{
-    HasAnyFileCondition, HasAllFilesCondition, MissingAllFilesCondition, MissingAnyFileCondition, NullCondition,
-    WorkspaceConditionEnum, WorkspaceDefinition,
+    HasAllFilesCondition, HasAnyFileCondition, MissingAllFilesCondition, MissingAnyFileCondition,
+    NullCondition, WorkspaceConditionEnum, WorkspaceDefinition,
 };
 use anyhow::{Context, Result};
-use schemars::{schema_for, JsonSchema};
+use schemars::{JsonSchema, schema_for};
 use serde::{Deserialize, Serialize};
 use std::ffi::OsString;
 use std::fs;
@@ -357,9 +357,9 @@ impl FromStr for TwmLayout {
         let settings = config::Config::builder()
             .add_source(config::File::from_str(config, config::FileFormat::Yaml))
             .build()
-            .with_context(|| {
-                "Failed to build configuration. You should never see this. I think."
-            })?;
+            .with_context(
+                || "Failed to build configuration. You should never see this. I think.",
+            )?;
 
         let local_config = settings
             .try_deserialize()
@@ -411,15 +411,21 @@ mod tests {
     fn test_get_config_path_env_var_override() {
         let orig_twm = std::env::var_os("TWM_CONFIG_FILE");
         let config_file = "/tmp/twm.yaml";
-        std::env::set_var("TWM_CONFIG_FILE", config_file);
+        unsafe {
+            std::env::set_var("TWM_CONFIG_FILE", config_file);
+        }
 
         let config_path = TwmGlobal::get_config_path().unwrap();
         assert_eq!(config_path, Some(PathBuf::from(config_file)));
 
         if let Some(twm) = orig_twm {
-            std::env::set_var("TWM_CONFIG_FILE", twm);
+            unsafe {
+                std::env::set_var("TWM_CONFIG_FILE", twm);
+            }
         } else {
-            std::env::remove_var("TWM_CONFIG_FILE");
+            unsafe {
+                std::env::remove_var("TWM_CONFIG_FILE");
+            }
         }
     }
 
@@ -429,9 +435,15 @@ mod tests {
         let orig_twm = std::env::var_os("TWM_CONFIG_FILE");
         let orig_home = std::env::var_os("HOME");
         let orig_xdg = std::env::var_os("XDG_CONFIG_HOME");
-        std::env::remove_var("TWM_CONFIG_FILE");
-        std::env::set_var("HOME", "/tmp");
-        std::env::set_var("XDG_CONFIG_HOME", "/tmp/.config");
+        unsafe {
+            std::env::remove_var("TWM_CONFIG_FILE");
+        }
+        unsafe {
+            std::env::set_var("HOME", "/tmp");
+        }
+        unsafe {
+            std::env::set_var("XDG_CONFIG_HOME", "/tmp/.config");
+        }
         let config_path = TwmGlobal::get_config_path().unwrap();
         assert_eq!(
             config_path,
@@ -440,17 +452,27 @@ mod tests {
         );
 
         if let Some(twm) = orig_twm {
-            std::env::set_var("TWM_CONFIG_FILE", twm);
+            unsafe {
+                std::env::set_var("TWM_CONFIG_FILE", twm);
+            }
         }
         if let Some(home) = orig_home {
-            std::env::set_var("HOME", home);
+            unsafe {
+                std::env::set_var("HOME", home);
+            }
         } else {
-            std::env::remove_var("HOME");
+            unsafe {
+                std::env::remove_var("HOME");
+            }
         }
         if let Some(xdg) = orig_xdg {
-            std::env::set_var("XDG_CONFIG_HOME", xdg);
+            unsafe {
+                std::env::set_var("XDG_CONFIG_HOME", xdg);
+            }
         } else {
-            std::env::remove_var("XDG_CONFIG_HOME");
+            unsafe {
+                std::env::remove_var("XDG_CONFIG_HOME");
+            }
         }
     }
 
@@ -461,9 +483,15 @@ mod tests {
         let orig_twm = std::env::var_os("TWM_CONFIG_FILE");
         let orig_home = std::env::var_os("HOME");
         let orig_xdg = std::env::var_os("XDG_CONFIG_HOME");
-        std::env::remove_var("TWM_CONFIG_FILE");
-        std::env::set_var("HOME", "/tmp");
-        std::env::set_var("XDG_CONFIG_HOME", "/tmp/.config");
+        unsafe {
+            std::env::remove_var("TWM_CONFIG_FILE");
+        }
+        unsafe {
+            std::env::set_var("HOME", "/tmp");
+        }
+        unsafe {
+            std::env::set_var("XDG_CONFIG_HOME", "/tmp/.config");
+        }
         std::fs::create_dir_all("/tmp/.config/twm").unwrap();
         std::fs::write("/tmp/.config/twm/twm.yaml", "").unwrap();
         let config_path = TwmGlobal::get_config_path().unwrap();
@@ -473,17 +501,27 @@ mod tests {
         );
 
         if let Some(twm) = orig_twm {
-            std::env::set_var("TWM_CONFIG_FILE", twm);
+            unsafe {
+                std::env::set_var("TWM_CONFIG_FILE", twm);
+            }
         }
         if let Some(home) = orig_home {
-            std::env::set_var("HOME", home);
+            unsafe {
+                std::env::set_var("HOME", home);
+            }
         } else {
-            std::env::remove_var("HOME");
+            unsafe {
+                std::env::remove_var("HOME");
+            }
         }
         if let Some(xdg) = orig_xdg {
-            std::env::set_var("XDG_CONFIG_HOME", xdg);
+            unsafe {
+                std::env::set_var("XDG_CONFIG_HOME", xdg);
+            }
         } else {
-            std::env::remove_var("XDG_CONFIG_HOME");
+            unsafe {
+                std::env::remove_var("XDG_CONFIG_HOME");
+            }
         }
         let _ = std::fs::remove_file("/tmp/.config/twm/twm.yaml");
     }
@@ -494,31 +532,51 @@ mod tests {
         let orig_twm = std::env::var_os("TWM_CONFIG_FILE");
         let orig_home = std::env::var_os("HOME");
         let orig_xdg = std::env::var_os("XDG_CONFIG_HOME");
-        std::env::remove_var("TWM_CONFIG_FILE");
-        std::env::set_var("HOME", "/tmp");
-        std::env::set_var("XDG_CONFIG_HOME", "/tmp/.config");
+        unsafe {
+            std::env::remove_var("TWM_CONFIG_FILE");
+        }
+        unsafe {
+            std::env::set_var("HOME", "/tmp");
+        }
+        unsafe {
+            std::env::set_var("XDG_CONFIG_HOME", "/tmp/.config");
+        }
 
         let unset_twm_file_config_path = TwmGlobal::get_config_path().unwrap();
 
-        std::env::set_var("TWM_CONFIG_FILE", "");
+        unsafe {
+            std::env::set_var("TWM_CONFIG_FILE", "");
+        }
         let empty_twm_file_config_path = TwmGlobal::get_config_path().unwrap();
 
         assert_eq!(unset_twm_file_config_path, empty_twm_file_config_path);
 
         if let Some(twm) = orig_twm {
-            std::env::set_var("TWM_CONFIG_FILE", twm);
+            unsafe {
+                std::env::set_var("TWM_CONFIG_FILE", twm);
+            }
         } else {
-            std::env::remove_var("TWM_CONFIG_FILE");
+            unsafe {
+                std::env::remove_var("TWM_CONFIG_FILE");
+            }
         }
         if let Some(home) = orig_home {
-            std::env::set_var("HOME", home);
+            unsafe {
+                std::env::set_var("HOME", home);
+            }
         } else {
-            std::env::remove_var("HOME");
+            unsafe {
+                std::env::remove_var("HOME");
+            }
         }
         if let Some(xdg) = orig_xdg {
-            std::env::set_var("XDG_CONFIG_HOME", xdg);
+            unsafe {
+                std::env::set_var("XDG_CONFIG_HOME", xdg);
+            }
         } else {
-            std::env::remove_var("XDG_CONFIG_HOME");
+            unsafe {
+                std::env::remove_var("XDG_CONFIG_HOME");
+            }
         }
     }
 
