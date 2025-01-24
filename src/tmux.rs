@@ -352,6 +352,9 @@ pub fn open_workspace_in_group(group_session_name: &str, args: &Arguments) -> Re
         Some(name) => SessionName::from(name.as_str()),
         None => get_group_session_name(group_session_name)?,
     };
+    if args.print_workspace_name {
+        println!("{}", tmux_name.as_str());
+    }
     create_tmux_session_in_group(group_session_name, &tmux_name)?;
     if !args.dont_attach {
         attach_to_tmux_session(&tmux_name.name)?;

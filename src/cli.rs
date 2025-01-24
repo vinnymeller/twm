@@ -31,6 +31,11 @@ pub struct Arguments {
     pub group: bool,
 
     #[clap(short, long)]
+    #[clap(short = 'G')]
+    /// Group with an existing session by name.
+    pub group_with: Option<String>,
+
+    #[clap(short, long)]
     /// Don't attach to the workspace session after opening it.
     pub dont_attach: bool,
 

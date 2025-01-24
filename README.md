@@ -35,6 +35,9 @@ Options:
 
           Setting this option will cause `-l/--layout` and `-p/--path` to be ignored.
 
+  -G, --group-with <GROUP_WITH>
+          Group with an existing session by name
+
   -d, --dont-attach
           Don't attach to the workspace session after opening it
 

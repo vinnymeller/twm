@@ -159,22 +159,24 @@ pub fn handle_existing_session_selection(args: &Arguments, tui: &mut Tui) -> Res
 }
 
 pub fn handle_group_session_selection(args: &Arguments, tui: &mut Tui) -> Result<()> {
-    let existing_sessions = get_tmux_sessions()?;
-    tui.enter()?;
-    let group_session_name = match Picker::new(
-        &existing_sessions,
-        "Select a session to group with: ".into(),
-    )
-    .get_selection(tui)?
-    {
-        PickerSelection::None => anyhow::bail!("No session selected"),
-        PickerSelection::Selection(s) => s,
-        PickerSelection::ModifiedSelection(s) => s,
+    let group_session_name = if let Some(name) = &args.group_with {
+        name.clone()
+    } else {
+        let existing_sessions = get_tmux_sessions()?;
+        tui.enter()?;
+        let name = match Picker::new(
+            &existing_sessions,
+            "Select a session to group with: ".into(),
+        )
+        .get_selection(tui)?
+        {
+            PickerSelection::None => anyhow::bail!("No session selected"),
+            PickerSelection::Selection(s) => s,
+            PickerSelection::ModifiedSelection(s) => s,
+        };
+        tui.exit()?;
+        name
     };
-    tui.exit()?;
-    if args.print_workspace_name {
-        println!("{}", group_session_name);
-    }
     open_workspace_in_group(&group_session_name, args)?;
     Ok(())
 }
