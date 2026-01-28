@@ -11,6 +11,9 @@ Your config file should be located at $XDG_CONFIG_HOME/twm/twm.yaml (default: ~/
 - `exclude_path_components`: a list of strings representing folders that will not be searched when searching for workspaces
 - `max_search_depth`: integer, how many directories deep to search your `search_paths` for workspaces
 - `session_name_path_components`: integer, how many directories deep to use by default when generating the name of your tmux session. e.g. if your workspace is `/home/vinny/dev/rust/twm` and `session_name_path_components` is 2, the tmux session will be named `rust/twm`. In the case of name conflicts (e.g. I also have a workspace in `/home/vinny/cache/rust/twm`), the new session would be called `cache/rust/twm`.
+- `session_sort_order`: string, how to sort existing tmux sessions when using `-e/--existing`. Possible values: `asc` (alphabetical A-Z), `desc` (alphabetical Z-A), `last_activity` (most recently used first, default).
+- `workspace_sort_order`: string, how to sort workspaces in the picker when no filter is active. Possible values: `asc` (alphabetical A-Z, default), `desc` (alphabetical Z-A). Note: `last_activity` is not supported for workspaces.
+- `favorites`: a list of workspace paths that can be quickly accessed with `-f/--favorites`. Shell expansion is supported (e.g., `~` will expand to your home directory). Invalid paths will show warnings but won't prevent the picker from opening.
 - `workspace_definitions`: optional, a list of workspace definitions. if no workspaces are defined, git repositories and directories with a `.twm.yaml` config are considered a workspace by default. other than `name` and `default_layout`, the other properties all configure workspace match conditions. any number of conditions can be used in combination with each other, e.g. `has_all_files: [ ".git", "requirements.txt" ]` and `missing_all_files: [ "pyproject.toml", "Pipfile", "poetry.lock"]` can be used together. each workspace definition has the following properties:
   - `name`: string, the name describing the workspace type. must be unique.
   - `has_any_file`: optional list of strings, tells twm to only consider a directory to be a workspace of this type if at least one filename in this list is present
@@ -46,6 +49,14 @@ session_name_path_components: 3    # how many parts of the workspace path to use
                                    # this value will be incremented until a unique session name is found
 
 follow_links: false                # whether to follow symlinks when searching for worksapces (default: true)
+
+session_sort_order: last_activity  # how to sort existing sessions: asc, desc, last_activity (default: last_activity)
+workspace_sort_order: asc          # how to sort workspaces in the picker: asc, desc (default: asc)
+
+favorites:                         # list of favorite workspaces accessible via `twm -f`
+  - ~/Projects/my-main-project
+  - ~/Work/important-repo
+  - ~/dotfiles
 
 workspace_definitions:             # our list of workspaces, each with different properties
     - name: python                 # they all have to be named
