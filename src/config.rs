@@ -4,12 +4,26 @@ use crate::workspace::{
     NullCondition, WorkspaceConditionEnum, WorkspaceDefinition,
 };
 use anyhow::{Context, Result};
-use schemars::{JsonSchema, schema_for};
+use schemars::schema_for;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::ffi::OsString;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
+
+/// Sort order for sessions and workspaces.
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum SortOrder {
+    /// Sort alphabetically ascending (A-Z)
+    #[default]
+    Asc,
+    /// Sort alphabetically descending (Z-A)
+    Desc,
+    /// Sort by last activity (most recent first) - only applicable for sessions
+    LastActivity,
+}
 
 #[derive(Serialize, Deserialize, Debug, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -161,6 +175,18 @@ fn default_follow_links() -> bool {
     true
 }
 
+fn default_session_sort_order() -> SortOrder {
+    SortOrder::LastActivity
+}
+
+fn default_workspace_sort_order() -> SortOrder {
+    SortOrder::Asc
+}
+
+fn default_favorites() -> Vec<String> {
+    vec![]
+}
+
 #[derive(Serialize, Deserialize, Debug, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct RawTwmGlobal {
@@ -218,6 +244,28 @@ pub struct RawTwmGlobal {
     /// If unset, defaults to true.
     #[serde(default = "default_follow_links")]
     follow_links: bool,
+
+    /// Sort order for existing tmux sessions when using `-e/--existing`.
+    /// If unset, defaults to `last_activity` (most recently used first).
+    ///
+    /// Possible values: `asc`, `desc`, `last_activity`
+    #[serde(default = "default_session_sort_order")]
+    session_sort_order: SortOrder,
+
+    /// Sort order for workspaces in the picker.
+    /// If unset, defaults to `asc` (alphabetically ascending).
+    ///
+    /// Possible values: `asc`, `desc`
+    /// Note: `last_activity` is not supported for workspaces.
+    #[serde(default = "default_workspace_sort_order")]
+    workspace_sort_order: SortOrder,
+
+    /// List of favorite workspace paths that can be quickly accessed with `-f/--favorites`.
+    /// Shell expansion is supported (e.g., `~` will expand to your home directory).
+    ///
+    /// If unset, defaults to an empty list.
+    #[serde(default = "default_favorites")]
+    favorites: Vec<String>,
 }
 
 impl Default for RawTwmGlobal {
@@ -242,6 +290,9 @@ pub struct TwmGlobal {
     pub layouts: Vec<LayoutDefinition>,
     pub max_search_depth: usize,
     pub follow_links: bool,
+    pub session_sort_order: SortOrder,
+    pub workspace_sort_order: SortOrder,
+    pub favorites: Vec<String>,
 }
 
 #[derive(Debug, Deserialize, Clone, JsonSchema)]
@@ -275,6 +326,13 @@ impl From<RawTwmGlobal> for TwmGlobal {
             .map(WorkspaceDefinition::from)
             .collect();
 
+        // Also expand favorites paths
+        let favorites: Vec<String> = raw_config
+            .favorites
+            .iter()
+            .map(|path| shellexpand::tilde(path).to_string())
+            .collect();
+
         Self {
             search_paths,
             exclude_path_components,
@@ -283,6 +341,9 @@ impl From<RawTwmGlobal> for TwmGlobal {
             max_search_depth: raw_config.max_search_depth,
             session_name_path_components: raw_config.session_name_path_components,
             follow_links: raw_config.follow_links,
+            session_sort_order: raw_config.session_sort_order,
+            workspace_sort_order: raw_config.workspace_sort_order,
+            favorites,
         }
     }
 }
@@ -357,9 +418,9 @@ impl FromStr for TwmLayout {
         let settings = config::Config::builder()
             .add_source(config::File::from_str(config, config::FileFormat::Yaml))
             .build()
-            .with_context(
-                || "Failed to build configuration. You should never see this. I think.",
-            )?;
+            .with_context(|| {
+                "Failed to build configuration. You should never see this. I think."
+            })?;
 
         let local_config = settings
             .try_deserialize()

@@ -1,9 +1,9 @@
 use crate::cli::Arguments;
-use crate::config::{TwmGlobal, TwmLayout};
+use crate::config::{SortOrder, TwmGlobal, TwmLayout};
 use crate::layout::{get_commands_from_layout, get_commands_from_layout_name, get_layout_names};
 use crate::ui::Tui;
 use crate::ui::{Picker, PickerSelection};
-use anyhow::{Context, Result, bail};
+use anyhow::{bail, Context, Result};
 use std::os::unix::process::CommandExt;
 use std::path::Path;
 use std::process::{Command, Output};
@@ -54,11 +54,53 @@ fn run_tmux_command(args: &[&str]) -> Result<Output> {
     Ok(output)
 }
 
-pub fn get_tmux_sessions() -> Result<Vec<String>> {
-    let output = run_tmux_command(&["list-sessions", "-F", "#{session_name}"])?;
+/// Session info with name and last activity timestamp
+struct SessionInfo {
+    name: String,
+    last_activity: u64,
+}
+
+pub fn get_tmux_sessions(sort_order: SortOrder) -> Result<Vec<String>> {
+    // Get session name and last_attached timestamp (unix timestamp)
+    let output = run_tmux_command(&[
+        "list-sessions",
+        "-F",
+        "#{session_name}\t#{session_last_attached}",
+    ])?;
     let out_str = String::from_utf8_lossy(&output.stdout);
-    let sessions: Vec<String> = out_str.lines().map(|s| s.to_string()).collect();
-    Ok(sessions)
+
+    let mut sessions: Vec<SessionInfo> = out_str
+        .lines()
+        .filter_map(|line| {
+            let parts: Vec<&str> = line.split('\t').collect();
+            if parts.len() >= 2 {
+                Some(SessionInfo {
+                    name: parts[0].to_string(),
+                    last_activity: parts[1].parse().unwrap_or(0),
+                })
+            } else if !line.is_empty() {
+                // Fallback if no timestamp available
+                Some(SessionInfo {
+                    name: line.to_string(),
+                    last_activity: 0,
+                })
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    // Sort based on the configured order
+    match sort_order {
+        SortOrder::Asc => sessions.sort_by(|a, b| a.name.cmp(&b.name)),
+        SortOrder::Desc => sessions.sort_by(|a, b| b.name.cmp(&a.name)),
+        SortOrder::LastActivity => {
+            // Most recently used first (descending by timestamp)
+            sessions.sort_by(|a, b| b.last_activity.cmp(&a.last_activity))
+        }
+    }
+
+    Ok(sessions.into_iter().map(|s| s.name).collect())
 }
 
 fn create_tmux_session(name: &SessionName, workspace_type: Option<&str>, path: &str) -> Result<()> {

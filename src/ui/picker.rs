@@ -3,20 +3,21 @@ use crossterm::event::{KeyEvent, KeyModifiers};
 
 use std::sync::Arc;
 
+use crate::config::SortOrder;
 use crossterm::event::KeyCode;
 use nucleo::{
-    Injector, Nucleo,
     pattern::{CaseMatching, Normalization},
+    Injector, Nucleo,
 };
 use ratatui::{
-    Frame,
     layout::{Constraint, Direction, Layout},
     style::{Color, Style, Stylize},
     text::{Line, Span},
     widgets::{
-        Block, HighlightSpacing, List, ListDirection, ListItem, ListState, Paragraph,
-        block::Position,
+        block::Position, Block, HighlightSpacing, List, ListDirection, ListItem, ListState,
+        Paragraph,
     },
+    Frame,
 };
 
 use super::event::Event;
@@ -36,6 +37,9 @@ pub struct Picker {
     pub injector: Injector<String>,
     prompt: String,
     should_exit: bool,
+    sort_order: Option<SortOrder>,
+    /// Cached sorted items for correct selection when custom sorting is applied
+    cached_items: Vec<String>,
 }
 
 impl Picker {
@@ -56,7 +60,16 @@ impl Picker {
             cursor_pos: 0,
             prompt,
             should_exit: false,
+            sort_order: None,
+            cached_items: Vec::new(),
         }
+    }
+
+    /// Set the sort order for displaying items when no filter is active.
+    /// When a filter is active, Nucleo's fuzzy matching score takes precedence.
+    pub fn with_sort_order(mut self, sort_order: SortOrder) -> Self {
+        self.sort_order = Some(sort_order);
+        self
     }
 
     pub fn get_selection(&mut self, tui: &mut Tui) -> Result<PickerSelection> {
@@ -116,9 +129,35 @@ impl Picker {
     pub fn render(&mut self, frame: &mut Frame) {
         self.matcher.tick(10);
         let snapshot = self.matcher.snapshot();
-        let matches = snapshot
-            .matched_items(..snapshot.matched_item_count())
-            .map(|item| ListItem::new(item.data.as_str()));
+
+        // Collect items - apply custom sorting only when filter is empty
+        self.cached_items = if self.filter.is_empty() && self.sort_order.is_some() {
+            let mut collected: Vec<String> = snapshot
+                .matched_items(..snapshot.matched_item_count())
+                .map(|item| item.data.clone())
+                .collect();
+
+            match self.sort_order {
+                Some(SortOrder::Asc) => collected.sort(),
+                Some(SortOrder::Desc) => collected.sort_by(|a, b| b.cmp(a)),
+                Some(SortOrder::LastActivity) => {
+                    // LastActivity doesn't make sense for workspaces, treat as Asc
+                    collected.sort();
+                }
+                None => {}
+            }
+            collected
+        } else {
+            snapshot
+                .matched_items(..snapshot.matched_item_count())
+                .map(|item| item.data.clone())
+                .collect()
+        };
+
+        let matches = self
+            .cached_items
+            .iter()
+            .map(|item| ListItem::new(item.as_str()));
 
         if let Some(selected) = self.selection.selected() {
             if snapshot.matched_item_count() == 0 {
@@ -147,10 +186,13 @@ impl Picker {
                 ),
             );
 
-        let layout = Layout::new(Direction::Vertical, [
-            Constraint::Length(frame.area().height - 1),
-            Constraint::Length(1),
-        ])
+        let layout = Layout::new(
+            Direction::Vertical,
+            [
+                Constraint::Length(frame.area().height - 1),
+                Constraint::Length(1),
+            ],
+        )
         .split(frame.area());
 
         frame.render_stateful_widget(table, layout[0], &mut self.selection);
@@ -168,11 +210,8 @@ impl Picker {
 
     fn get_selected_text(&self) -> Option<String> {
         if let Some(index) = self.selection.selected() {
-            return self
-                .matcher
-                .snapshot()
-                .get_matched_item(index as u32)
-                .map(|item| item.data.to_owned());
+            // Use cached_items which respects our custom sorting
+            return self.cached_items.get(index).cloned();
         }
 
         None
