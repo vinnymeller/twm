@@ -1,8 +1,9 @@
 use crate::{
     handler::{
-        handle_existing_session_selection, handle_group_session_selection,
-        handle_make_default_config, handle_make_default_layout_config,
-        handle_print_bash_completions, handle_print_config_schema, handle_print_fish_completions,
+        handle_existing_session_selection, handle_favorites_selection,
+        handle_group_session_selection, handle_make_default_config,
+        handle_make_default_layout_config, handle_print_bash_completions,
+        handle_print_config_schema, handle_print_fish_completions,
         handle_print_layout_config_schema, handle_print_man, handle_print_zsh_completions,
         handle_workspace_selection,
     },
@@ -23,6 +24,12 @@ pub struct Arguments {
     ///
     /// This shouldn't be used with other options.
     pub existing: bool,
+
+    #[clap(short, long)]
+    /// Prompt user to select a workspace from the configured favorites list.
+    ///
+    /// Favorites are defined in your configuration file under the `favorites` key.
+    pub favorites: bool,
 
     #[clap(short, long)]
     /// Prompt user to start a new session in the same group as an existing session.
@@ -156,6 +163,8 @@ pub fn parse() -> Result<()> {
             let mut tui = Tui::start()?;
             let res = if args.existing {
                 handle_existing_session_selection(&args, &mut tui)
+            } else if args.favorites {
+                handle_favorites_selection(&args, &mut tui)
             } else if args.group {
                 handle_group_session_selection(&args, &mut tui)
             } else {

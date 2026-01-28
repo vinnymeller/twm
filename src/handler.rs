@@ -1,8 +1,8 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::Result;
-use clap::{CommandFactory, crate_name};
-use clap_complete::{Shell, generate};
+use clap::{crate_name, CommandFactory};
+use clap_complete::{generate, Shell};
 
 use crate::{
     cli::Arguments,
@@ -13,7 +13,7 @@ use crate::{
         session_name_for_path_recursive,
     },
     ui::Tui,
-    workspace::get_workspace_type_for_path,
+    workspace::{get_workspace_type_for_path, path_meets_workspace_conditions},
 };
 
 use crate::ui::{Picker, PickerSelection};
@@ -63,8 +63,8 @@ pub const DEFAULT_LAYOUT_CONFIG_TEMPLATE: &str = r#"layout:
 pub fn handle_make_default_layout_config(args: &Arguments) -> Result<()> {
     let config_filename = format!(".{}.yaml", crate_name!());
 
-    let config_path = if args.path.is_some() {
-        let mut path = PathBuf::from(args.path.as_ref().expect("Just checked?"));
+    let config_path = if let Some(p) = &args.path {
+        let mut path = PathBuf::from(p);
         if path.is_file() {
             path.pop();
         }
@@ -92,8 +92,8 @@ pub fn handle_make_default_layout_config(args: &Arguments) -> Result<()> {
 pub fn handle_make_default_config(args: &Arguments) -> Result<()> {
     let config_filename = format!("{}.yaml", crate_name!());
     let schema_filename = format!("{}.schema.json", crate_name!());
-    let (config_path, schema_path) = if args.path.is_some() {
-        let mut path = PathBuf::from(args.path.as_ref().expect("Path was just checked?"));
+    let (config_path, schema_path) = if let Some(p) = &args.path {
+        let mut path = PathBuf::from(p);
         if path.is_file() {
             path.pop();
         }
@@ -138,7 +138,8 @@ before running this command again.",
 }
 
 pub fn handle_existing_session_selection(args: &Arguments, tui: &mut Tui) -> Result<()> {
-    let existing_sessions = get_tmux_sessions()?;
+    let config = TwmGlobal::load()?;
+    let existing_sessions = get_tmux_sessions(config.session_sort_order)?;
     tui.enter()?;
     let session_name = match Picker::new(
         &existing_sessions,
@@ -159,10 +160,11 @@ pub fn handle_existing_session_selection(args: &Arguments, tui: &mut Tui) -> Res
 }
 
 pub fn handle_group_session_selection(args: &Arguments, tui: &mut Tui) -> Result<()> {
+    let config = TwmGlobal::load()?;
     let group_session_name = if let Some(name) = &args.group_with {
         name.clone()
     } else {
-        let existing_sessions = get_tmux_sessions()?;
+        let existing_sessions = get_tmux_sessions(config.session_sort_order)?;
         tui.enter()?;
         let name = match Picker::new(
             &existing_sessions,
@@ -190,7 +192,8 @@ pub fn handle_workspace_selection(args: &Arguments, tui: &mut Tui) -> Result<()>
             None => anyhow::bail!("Path is not valid UTF-8"),
         }
     } else {
-        let mut picker = Picker::new(&[], "Select a workspace: ".into());
+        let mut picker = Picker::new(&[], "Select a workspace: ".into())
+            .with_sort_order(config.workspace_sort_order);
         let injector = picker.injector.clone();
         let config = config.clone();
         std::thread::spawn(move || {
@@ -217,6 +220,91 @@ pub fn handle_workspace_selection(args: &Arguments, tui: &mut Tui) -> Result<()>
     }
 
     // if we couldn't find a correct session to group with, open the workspace normally
+
+    let workspace_type =
+        get_workspace_type_for_path(Path::new(&workspace_path), &config.workspace_definitions);
+    open_workspace(&workspace_path, workspace_type, &config, args, tui)?;
+
+    Ok(())
+}
+
+pub fn handle_favorites_selection(args: &Arguments, tui: &mut Tui) -> Result<()> {
+    let config = TwmGlobal::load()?;
+
+    if config.favorites.is_empty() {
+        anyhow::bail!(
+            "No favorites configured. Add favorite paths to your config file under the 'favorites' key."
+        );
+    }
+
+    // Validate favorites and collect valid ones with warnings for invalid paths
+    let mut valid_favorites: Vec<String> = Vec::new();
+    let mut warnings: Vec<String> = Vec::new();
+
+    for favorite in &config.favorites {
+        let path = Path::new(favorite);
+
+        if !path.exists() {
+            warnings.push(format!("Favorite path does not exist: {}", favorite));
+            continue;
+        }
+
+        if !path.is_dir() {
+            warnings.push(format!("Favorite path is not a directory: {}", favorite));
+            continue;
+        }
+
+        // Check if it's a valid workspace according to the configuration
+        if !path_meets_workspace_conditions(path, &config.workspace_definitions[0].conditions) {
+            // Still add it, but warn - the user might want to open non-workspace dirs as favorites
+            // We'll use the first workspace definition for validation
+            let is_any_workspace = config
+                .workspace_definitions
+                .iter()
+                .any(|def| path_meets_workspace_conditions(path, &def.conditions));
+
+            if !is_any_workspace {
+                warnings.push(format!(
+                    "Favorite path is not a recognized workspace (no matching workspace definition): {}",
+                    favorite
+                ));
+            }
+        }
+
+        // Canonicalize the path
+        match std::fs::canonicalize(path) {
+            Ok(canonical) => {
+                if let Some(p) = canonical.to_str() {
+                    valid_favorites.push(p.to_owned());
+                }
+            }
+            Err(_) => {
+                warnings.push(format!("Failed to resolve path: {}", favorite));
+            }
+        }
+    }
+
+    // Print warnings to stderr
+    for warning in &warnings {
+        eprintln!("Warning: {}", warning);
+    }
+
+    if valid_favorites.is_empty() {
+        anyhow::bail!(
+            "No valid favorite paths found. Check your configuration and the warnings above."
+        );
+    }
+
+    tui.enter()?;
+    let workspace_path = match Picker::new(&valid_favorites, "Select a favorite workspace: ".into())
+        .with_sort_order(config.workspace_sort_order)
+        .get_selection(tui)?
+    {
+        PickerSelection::None => anyhow::bail!("No workspace selected"),
+        PickerSelection::Selection(s) => s,
+        PickerSelection::ModifiedSelection(s) => s,
+    };
+    tui.exit()?;
 
     let workspace_type =
         get_workspace_type_for_path(Path::new(&workspace_path), &config.workspace_definitions);
