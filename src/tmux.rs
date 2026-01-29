@@ -252,11 +252,10 @@ pub fn session_name_for_path_recursive(
 
     // if we successfully parse the TWM_ROOT variable for the session and it matches our path,
     // we've found the session we're looking for & return that session name
-    if let Ok(twm_root) = get_twm_root_for_session(&name) {
-        if twm_root == path {
+    if let Ok(twm_root) = get_twm_root_for_session(&name)
+        && twm_root == path {
             return Ok(Some(name));
         }
-    }
     // if we have an error or our path doesn't match the TWM_ROOT, add more path components
     session_name_for_path_recursive(path, path_components + 1)
 }

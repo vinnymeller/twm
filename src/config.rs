@@ -65,41 +65,37 @@ impl From<WorkspaceDefinitionConfig> for WorkspaceDefinition {
     fn from(config: WorkspaceDefinitionConfig) -> Self {
         let mut conditions = Vec::<WorkspaceConditionEnum>::new();
 
-        if let Some(has_any_file) = config.has_any_file {
-            if !has_any_file.is_empty() {
+        if let Some(has_any_file) = config.has_any_file
+            && !has_any_file.is_empty() {
                 let condition = HasAnyFileCondition {
                     files: has_any_file,
                 };
                 conditions.push(condition.into());
             }
-        }
 
-        if let Some(has_all_files) = config.has_all_files {
-            if !has_all_files.is_empty() {
+        if let Some(has_all_files) = config.has_all_files
+            && !has_all_files.is_empty() {
                 let condition = HasAllFilesCondition {
                     files: has_all_files,
                 };
                 conditions.push(condition.into());
             }
-        }
 
-        if let Some(missing_any_file) = config.missing_any_file {
-            if !missing_any_file.is_empty() {
+        if let Some(missing_any_file) = config.missing_any_file
+            && !missing_any_file.is_empty() {
                 let condition = MissingAnyFileCondition {
                     files: missing_any_file,
                 };
                 conditions.push(condition.into());
             }
-        }
 
-        if let Some(missing_all_files) = config.missing_all_files {
-            if !missing_all_files.is_empty() {
+        if let Some(missing_all_files) = config.missing_all_files
+            && !missing_all_files.is_empty() {
                 let condition = MissingAllFilesCondition {
                     files: missing_all_files,
                 };
                 conditions.push(condition.into());
             }
-        }
 
         if conditions.is_empty() {
             let condition = NullCondition {};
