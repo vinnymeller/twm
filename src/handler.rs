@@ -1,8 +1,8 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::Result;
-use clap::{CommandFactory, crate_name};
-use clap_complete::{Shell, generate};
+use clap::{crate_name, CommandFactory};
+use clap_complete::{generate, Shell};
 
 use crate::{
     cli::Arguments,
@@ -97,13 +97,25 @@ pub fn handle_make_default_config(args: &Arguments) -> Result<()> {
         if path.is_file() {
             path.pop();
         }
-        (path.join(&config_filename), path.join(&schema_filename))
+        (
+            Some(path.join(&config_filename)),
+            Some(path.join(&schema_filename)),
+        )
     } else {
-        let base_dirs = xdg::BaseDirectories::with_prefix(crate_name!())?;
+        let base_dirs = xdg::BaseDirectories::with_prefix(crate_name!());
         (
             base_dirs.get_config_file(&config_filename),
             base_dirs.get_config_file(&schema_filename),
         )
+    };
+
+    let (config_path, schema_path) = match (config_path, schema_path) {
+        (Some(config_path), Some(schema_path)) => (config_path, schema_path),
+        _ => {
+            anyhow::bail!(
+            "Unable to locate configuration directories. Check your XDG vars or explicitly pass a path to use."
+            );
+        }
     };
 
     if config_path.exists() || schema_path.exists() {

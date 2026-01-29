@@ -4,7 +4,7 @@ use crate::workspace::{
     NullCondition, WorkspaceConditionEnum, WorkspaceDefinition,
 };
 use anyhow::{Context, Result};
-use schemars::{JsonSchema, schema_for};
+use schemars::{schema_for, JsonSchema};
 use serde::{Deserialize, Serialize};
 use std::ffi::OsString;
 use std::fs;
@@ -321,12 +321,17 @@ impl TwmGlobal {
         match std::env::var_os("TWM_CONFIG_FILE") {
             // if TWM_CONFIG_FILE is not set, search xdg dirs for config file as normal
             c if c.as_ref().unwrap_or(&OsString::default()).is_empty() => {
-                let xdg_dirs = xdg::BaseDirectories::with_prefix(clap::crate_name!())
-                    .with_context(|| "Failed to load XDG dirs.")?;
+                let xdg_dirs = xdg::BaseDirectories::with_prefix(clap::crate_name!());
                 let xdg_config_path = xdg_dirs.get_config_file(config_file_name);
-                match xdg_config_path.exists() {
-                    true => Ok(Some(xdg_config_path)),
-                    false => Ok(None),
+                match xdg_config_path {
+                    Some(path) => {
+                        if path.exists() {
+                            Ok(Some(path))
+                        } else {
+                            Ok(None)
+                        }
+                    }
+                    None => Ok(None),
                 }
             }
             // if we explicitly set the TWM_CONFIG_FILE, we should take it at face value and return the path here
@@ -357,9 +362,9 @@ impl FromStr for TwmLayout {
         let settings = config::Config::builder()
             .add_source(config::File::from_str(config, config::FileFormat::Yaml))
             .build()
-            .with_context(
-                || "Failed to build configuration. You should never see this. I think.",
-            )?;
+            .with_context(|| {
+                "Failed to build configuration. You should never see this. I think."
+            })?;
 
         let local_config = settings
             .try_deserialize()

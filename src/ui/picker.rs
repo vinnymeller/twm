@@ -5,18 +5,17 @@ use std::sync::Arc;
 
 use crossterm::event::KeyCode;
 use nucleo::{
-    Injector, Nucleo,
     pattern::{CaseMatching, Normalization},
+    Injector, Nucleo,
 };
 use ratatui::{
-    Frame,
     layout::{Constraint, Direction, Layout},
     style::{Color, Style, Stylize},
     text::{Line, Span},
     widgets::{
-        Block, HighlightSpacing, List, ListDirection, ListItem, ListState, Paragraph,
-        block::Position,
+        Block, HighlightSpacing, List, ListDirection, ListItem, ListState, Paragraph, TitlePosition,
     },
+    Frame,
 };
 
 use super::event::Event;
@@ -137,20 +136,25 @@ impl Picker {
             .highlight_symbol("> ")
             .highlight_style(Style::default().fg(Color::LightBlue))
             .block(
-                Block::default().title_position(Position::Bottom).title(
-                    Span::from(format!(
-                        "{}/{}",
-                        snapshot.matched_item_count(),
-                        snapshot.item_count()
-                    ))
-                    .gray(),
-                ),
+                Block::default()
+                    .title_position(TitlePosition::Bottom)
+                    .title(
+                        Span::from(format!(
+                            "{}/{}",
+                            snapshot.matched_item_count(),
+                            snapshot.item_count()
+                        ))
+                        .gray(),
+                    ),
             );
 
-        let layout = Layout::new(Direction::Vertical, [
-            Constraint::Length(frame.area().height - 1),
-            Constraint::Length(1),
-        ])
+        let layout = Layout::new(
+            Direction::Vertical,
+            [
+                Constraint::Length(frame.area().height - 1),
+                Constraint::Length(1),
+            ],
+        )
         .split(frame.area());
 
         frame.render_stateful_widget(table, layout[0], &mut self.selection);
