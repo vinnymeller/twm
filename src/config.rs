@@ -4,7 +4,7 @@ use crate::workspace::{
     NullCondition, WorkspaceConditionEnum, WorkspaceDefinition,
 };
 use anyhow::{Context, Result};
-use schemars::{schema_for, JsonSchema};
+use schemars::{JsonSchema, schema_for};
 use serde::{Deserialize, Serialize};
 use std::ffi::OsString;
 use std::fs;
@@ -66,36 +66,40 @@ impl From<WorkspaceDefinitionConfig> for WorkspaceDefinition {
         let mut conditions = Vec::<WorkspaceConditionEnum>::new();
 
         if let Some(has_any_file) = config.has_any_file
-            && !has_any_file.is_empty() {
-                let condition = HasAnyFileCondition {
-                    files: has_any_file,
-                };
-                conditions.push(condition.into());
-            }
+            && !has_any_file.is_empty()
+        {
+            let condition = HasAnyFileCondition {
+                files: has_any_file,
+            };
+            conditions.push(condition.into());
+        }
 
         if let Some(has_all_files) = config.has_all_files
-            && !has_all_files.is_empty() {
-                let condition = HasAllFilesCondition {
-                    files: has_all_files,
-                };
-                conditions.push(condition.into());
-            }
+            && !has_all_files.is_empty()
+        {
+            let condition = HasAllFilesCondition {
+                files: has_all_files,
+            };
+            conditions.push(condition.into());
+        }
 
         if let Some(missing_any_file) = config.missing_any_file
-            && !missing_any_file.is_empty() {
-                let condition = MissingAnyFileCondition {
-                    files: missing_any_file,
-                };
-                conditions.push(condition.into());
-            }
+            && !missing_any_file.is_empty()
+        {
+            let condition = MissingAnyFileCondition {
+                files: missing_any_file,
+            };
+            conditions.push(condition.into());
+        }
 
         if let Some(missing_all_files) = config.missing_all_files
-            && !missing_all_files.is_empty() {
-                let condition = MissingAllFilesCondition {
-                    files: missing_all_files,
-                };
-                conditions.push(condition.into());
-            }
+            && !missing_all_files.is_empty()
+        {
+            let condition = MissingAllFilesCondition {
+                files: missing_all_files,
+            };
+            conditions.push(condition.into());
+        }
 
         if conditions.is_empty() {
             let condition = NullCondition {};
@@ -358,9 +362,9 @@ impl FromStr for TwmLayout {
         let settings = config::Config::builder()
             .add_source(config::File::from_str(config, config::FileFormat::Yaml))
             .build()
-            .with_context(|| {
-                "Failed to build configuration. You should never see this. I think."
-            })?;
+            .with_context(
+                || "Failed to build configuration. You should never see this. I think.",
+            )?;
 
         let local_config = settings
             .try_deserialize()

@@ -5,17 +5,17 @@ use std::sync::Arc;
 
 use crossterm::event::KeyCode;
 use nucleo::{
-    pattern::{CaseMatching, Normalization},
     Injector, Nucleo,
+    pattern::{CaseMatching, Normalization},
 };
 use ratatui::{
+    Frame,
     layout::{Constraint, Direction, Layout},
     style::{Color, Style, Stylize},
     text::{Line, Span},
     widgets::{
         Block, HighlightSpacing, List, ListDirection, ListItem, ListState, Paragraph, TitlePosition,
     },
-    Frame,
 };
 
 use super::event::Event;

@@ -1,8 +1,8 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::Result;
-use clap::{crate_name, CommandFactory};
-use clap_complete::{generate, Shell};
+use clap::{CommandFactory, crate_name};
+use clap_complete::{Shell, generate};
 
 use crate::{
     cli::Arguments,
@@ -113,7 +113,7 @@ pub fn handle_make_default_config(args: &Arguments) -> Result<()> {
         (Some(config_path), Some(schema_path)) => (config_path, schema_path),
         _ => {
             anyhow::bail!(
-            "Unable to locate configuration directories. Check your XDG vars or explicitly pass a path to use."
+                "Unable to locate configuration directories. Check your XDG vars or explicitly pass a path to use."
             );
         }
     };
