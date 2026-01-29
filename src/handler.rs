@@ -194,7 +194,16 @@ pub fn handle_group_session_selection(args: &Arguments, tui: &mut Tui) -> Result
 }
 
 pub fn handle_workspace_selection(args: &Arguments, tui: &mut Tui) -> Result<()> {
-    let config = TwmGlobal::load()?;
+    let mut config = TwmGlobal::load()?;
+    if let Some(max_depth) = args.depth {
+        config.max_search_depth = max_depth;
+    }
+    if let Some(search_paths) = &args.search_paths {
+        config.search_paths = search_paths
+            .iter()
+            .map(|path| shellexpand::tilde(path).to_string())
+            .collect();
+    }
     let (workspace_path, try_grouping) = if let Some(path) = &args.path {
         let path_full = std::fs::canonicalize(path)?;
         match path_full.to_str() {

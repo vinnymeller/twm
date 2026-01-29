@@ -17,6 +17,22 @@ use clap::Parser;
 /// twm (tmux workspace manager) is a customizable tool for managing workspaces in tmux sessions.
 ///
 /// Workspaces are defined as a directory matching any workspace pattern from your configuration. If no configuration is set, any directory containing a `.git` file/folder or a `.twm.yaml` file is considered a workspace.
+///
+///
+/// Environment variables that affect twm:
+///
+/// TWM_CONFIG_FILE: Path to the configuration file to use. Overrides the default search locations.
+///
+/// Environment variables that twm sets in tmux sessions:
+///
+/// TWM: set to 1 to indicate that you're in a twm-managed session
+///
+/// TWM_ROOT: the root directory of the workspace
+///
+/// TWM_TYPE: the type of workspace, as defined in your configuration via the "name" on workspace definitions
+///
+/// TWM_NAME: the name of the session at creation time
+///
 pub struct Arguments {
     #[clap(short, long)]
     /// Prompt user to select an existing tmux session to attach to.
@@ -111,6 +127,17 @@ pub struct Arguments {
     #[clap(long)]
     /// Print man(1) page to stdout
     pub print_man: bool,
+
+    #[clap(short, long)]
+    /// Paths to search for workspaces in. Overrides paths set in configuration.
+    ///
+    /// Multiple paths can be specified by setting this flag multiple times, e.g. `-s ~/projects -s ~/work`.
+    pub search_paths: Option<Vec<String>>,
+
+    #[clap(short, long)]
+    #[clap(short = 'D')]
+    /// Maximum depth to search for workspaces. Overrides max depth set in configuration.
+    pub depth: Option<usize>,
 }
 
 /// Parses the command line arguments and runs the program. Called from `main.rs`.
