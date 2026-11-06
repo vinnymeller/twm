@@ -102,7 +102,7 @@ fn create_tmux_session_in_group(group_session_name: &str, name: &SessionName) ->
 }
 
 fn attach_to_tmux_session_inside_tmux(session_name: &str) -> Result<()> {
-    run_tmux_command(&["switch", "-t", session_name]).with_context(|| {
+    run_tmux_command(&["switch-client", "-t", session_name]).with_context(|| {
         format!("Failed to attach to tmux session with name {session_name} inside tmux")
     })?;
     Ok(())

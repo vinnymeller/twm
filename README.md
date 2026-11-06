@@ -207,7 +207,7 @@ bind f run-shell "tmux neww twm"
 bind F run-shell "tmux neww twm -l"
 bind s run-shell "tmux neww twm -e"  # i rebind the original `s` to `S` so I can still use it
 bind g run-shell "tmux neww twm -g"
-bind e run-shell "tmux switch -t $TWM_DEFAULT"  # i set TWM_DEFAULT in my shellrc, just a session that is always available as a scratch area
+bind e run-shell "tmux switch-client -t $TWM_DEFAULT"  # i set TWM_DEFAULT in my shellrc, just a session that is always available as a scratch area
 ```
 
 ### Scripting
@@ -242,7 +242,7 @@ I like to make sure I'm always in tmux when I'm in the terminal, so I have somet
 export TWM_DEFAULT="default"
 tmux has-session -t $TWM_DEFAULT >/dev/null || twm -d -p $HOME -n $TWM_DEFAULT
 if [ -z "$TWM" ]; then
-        tmux switch -t $TWM_DEFAULT
+        tmux switch-client -t $TWM_DEFAULT
 fi
 ```
 
@@ -257,7 +257,7 @@ alias twm-fork='twmg() { gh repo fork --clone --default-branch-only --remote "$1
 # i bind this to K in tmux
 kt() {
   ORIG_SESS="$TWM_NAME"
-  tmux switch -l || tmux switch -n || tmux switch -p
+  tmux switch-client -l || tmux switch-client -n || tmux switch-client -p
   tmux kill-session -t "$ORIG_SESS"
 }
 
